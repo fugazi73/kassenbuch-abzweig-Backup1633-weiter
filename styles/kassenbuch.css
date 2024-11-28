@@ -1,0 +1,280 @@
+/* Tabellen-Basis */
+.table {
+    font-family: 'Lato', sans-serif;
+    color: var(--text-color);
+}
+
+.table thead th {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    padding: 1.2rem 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.table td {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+    padding: 1.2rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Geldbeträge */
+.money-value,
+td .betrag,
+td .einnahme,
+td .ausgabe,
+td .saldo,
+td .kassenstand,
+.status-value {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.einnahme { color: var(--negative-color); }
+.ausgabe { color: var(--positive-color); }
+.saldo, .kassenstand { color: var(--neutral-color); }
+
+/* Spaltenbreiten */
+.table th:first-child,
+.table td:first-child { width: 100px; }
+
+.table th:nth-child(2),
+.table td:nth-child(2) { width: 120px; }
+
+.table th:nth-child(4),
+.table td:nth-child(4),
+.table th:nth-child(5),
+.table td:nth-child(5),
+.table th:nth-child(6),
+.table td:nth-child(6),
+.table th:nth-child(7),
+.table td:nth-child(7) {
+    width: 130px;
+    text-align: right;
+}
+
+/* Status Boxen */
+.status-box {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2rem;
+    background: var(--card-bg);
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.status-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.status-label {
+    font-size: 1rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+/* Kassenstand Container */
+.kassenstand-container {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+}
+
+.kassenstand-box {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2rem;
+    align-items: center;
+}
+
+.kassenstand-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.kassenstand-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    margin-bottom: 0.3rem;
+}
+
+.kassenstand-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+/* Kassenstand Display */
+.kassenstand-display {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.kassenstand-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.kassenstand-value {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.kassenstand-value.positive {
+    color: var(--positive-color) !important;
+}
+
+.kassenstand-value.negative {
+    color: var(--negative-color) !important;
+}
+
+/* Container & Layout */
+.container-fluid {
+    padding: 1rem;
+    margin: 0 auto;
+    max-width: 1800px;
+}
+
+/* Tabellen-Styles */
+.table-container {
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.1rem;
+    font-family: 'Lato', sans-serif !important;
+}
+
+.table thead th {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    font-weight: 700;
+    padding: 1.2rem 1rem;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color);
+    font-size: 1.1rem;
+}
+
+.table tbody td {
+    padding: 1.2rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums !important;
+}
+
+.table tbody tr:hover {
+    background-color: var(--table-hover);
+}
+
+/* Beträge und Werte */
+.betrag, .kassenstand, .saldo {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    white-space: nowrap;
+}
+
+.money-value,
+td .betrag,
+td .einnahme,
+td .ausgabe,
+td .saldo,
+td .kassenstand,
+.status-value {
+    font-family: 'Lato', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    white-space: nowrap !important;
+}
+
+/* Status Box */
+.status-box {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2rem;
+    background: var(--card-bg);
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.status-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.status-label {
+    font-size: 1rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.status-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.pagination .page-item .page-link {
+    padding: 0.7rem 1rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--nav-active);
+    border-color: var(--nav-active);
+}
+
+/* Aktions-Buttons */
+.action-buttons {
+    white-space: nowrap;
+    display: inline-flex;
+    gap: 0.5rem;
+}
+
+.btn-action {
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.table th:last-child,
+.table td:last-child {
+    width: 100px;
+    text-align: right;
+}

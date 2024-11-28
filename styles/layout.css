@@ -1,0 +1,12 @@
+.main-header, .footer {
+    background-color: var(--nav-bg);
+    border-color: var(--border-color);
+}
+
+.main-header {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.footer {
+    border-top: 1px solid var(--border-color);
+} 

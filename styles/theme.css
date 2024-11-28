@@ -1,0 +1,150 @@
+:root {
+    /* Base Colors */
+    --bg-color: #ffffff;
+    --text-color: #212529;
+    --border-color: #dee2e6;
+    
+    /* Component Colors */
+    --card-bg: #ffffff;
+    --header-bg: #f8f9fa;
+    --table-hover: #f8f9fa;
+    --input-bg: #ffffff;
+    
+    /* Navigation */
+    --nav-bg: #f8f9fa;
+    --nav-color: #212529;
+    --nav-hover: #e9ecef;
+    --nav-active: #0d6efd;
+    --nav-active-color: #ffffff;
+    
+    /* Status Colors */
+    --positive-color: #198754;
+    --negative-color: #dc3545;
+    --neutral-color: #0d6efd;
+    
+    /* Form Elements */
+    --input-border: #ced4da;
+    --input-text: #212529;
+    --btn-text: #212529;
+}
+
+[data-bs-theme="dark"] {
+    /* Base Colors */
+    --bg-color: #212529;
+    --text-color: #f8f9fa;
+    --border-color: #495057;
+    
+    /* Component Colors */
+    --card-bg: #2c3237;
+    --header-bg: #212529;
+    --table-hover: #343a40;
+    --input-bg: #343a40;
+    
+    /* Navigation */
+    --nav-bg: #212529;
+    --nav-color: #f8f9fa;
+    --nav-hover: #343a40;
+    
+    /* Status Colors */
+    --positive-color: #75b798;
+    --negative-color: #ea868f;
+    --neutral-color: #6ea8fe;
+    
+    /* Form Elements */
+    --input-border: #495057;
+    --input-text: #f8f9fa;
+    --btn-text: #f8f9fa;
+}
+
+/* Base Styles */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Header & Navigation */
+.main-header, header {
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-link {
+    color: var(--nav-color);
+}
+
+.nav-link:hover {
+    background-color: var(--nav-hover);
+}
+
+/* Cards */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.card-header {
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Forms */
+.form-control {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--input-text);
+}
+
+/* Buttons */
+.btn-outline-primary {
+    color: var(--btn-text);
+    border-color: var(--neutral-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--neutral-color);
+    color: #fff;
+}
+
+.btn-outline-danger {
+    color: var(--btn-text);
+    border-color: var(--negative-color);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--negative-color);
+    color: #fff;
+}
+
+/* Dropdowns */
+.dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.dropdown-item {
+    color: var(--text-color);
+}
+
+.dropdown-item:hover {
+    background-color: var(--nav-hover);
+}
+
+/* Table Styles */
+.table {
+    color: var(--text-color);
+}
+
+.table td, .table th {
+    border-color: var(--border-color);
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--table-hover);
+}
+
+/* Betragsfarben */
+.einnahme { color: var(--negative-color) !important; }
+.ausgabe { color: var(--positive-color) !important; }
+.saldo, .kassenstand { color: var(--neutral-color) !important; } 
