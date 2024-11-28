@@ -1,0 +1,56 @@
+# Konfigurationsdateien
+config.php
+.env
+
+# Composer
+/vendor/
+composer.lock
+
+# Backup-Dateien
+/backups/*
+!backups/.gitkeep
+
+# Temporäre Dateien
+*.tmp
+*.temp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Log-Dateien
+*.log
+error.log
+debug.log
+
+# IDE-spezifische Dateien
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# Cache-Dateien
+/cache/*
+!cache/.gitkeep
+
+# Upload-Verzeichnis
+/uploads/*
+!uploads/.gitkeep
+
+# Test-Dateien
+/tests/coverage/
+phpunit.xml
+
+# Sicherheitskopien
+*.bak
+*.backup
+*~
+
+# Kompilierte Dateien
+*.compiled.php
+*.cache
+
+# Lokale Entwicklungsumgebung
+/dev/
+local-*# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
