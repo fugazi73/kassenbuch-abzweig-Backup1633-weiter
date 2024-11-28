@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* Tabellen-Basis */
 .table {
     font-family: 'Lato', sans-serif;
@@ -21,6 +22,19 @@
 }
 
 /* Geldbeträge */
+=======
+/* Tabellen-Styles */
+.table {
+    font-family: 'Lato', sans-serif !important;
+}
+
+.table td {
+    font-family: 'Lato', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 .money-value,
 td .betrag,
 td .einnahme,
@@ -28,6 +42,7 @@ td .ausgabe,
 td .saldo,
 td .kassenstand,
 .status-value {
+<<<<<<< HEAD
     font-family: 'Lato', sans-serif;
     font-size: 1.1rem;
     font-weight: 700;
@@ -39,6 +54,15 @@ td .kassenstand,
 .ausgabe { color: var(--positive-color); }
 .saldo, .kassenstand { color: var(--neutral-color); }
 
+=======
+    font-family: 'Lato', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    white-space: nowrap !important;
+}
+
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 /* Spaltenbreiten */
 .table th:first-child,
 .table td:first-child { width: 100px; }
@@ -56,6 +80,7 @@ td .kassenstand,
 .table td:nth-child(7) {
     width: 130px;
     text-align: right;
+<<<<<<< HEAD
 }
 
 /* Status Boxen */
@@ -278,3 +303,6 @@ td .kassenstand,
     width: 100px;
     text-align: right;
 }
+=======
+} 
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f

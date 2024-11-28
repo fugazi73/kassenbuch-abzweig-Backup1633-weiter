@@ -1,4 +1,5 @@
 :root {
+<<<<<<< HEAD
     /* Base Colors */
     --bg-color: #ffffff;
     --text-color: #212529;
@@ -11,11 +12,22 @@
     --input-bg: #ffffff;
     
     /* Navigation */
+=======
+    /* Light Theme */
+    --bg-color: #ffffff;
+    --text-color: #212529;
+    --border-color: #dee2e6;
+    --card-bg: #ffffff;
+    --table-hover: #f8f9fa;
+    --input-bg: #ffffff;
+    --header-bg: #f8f9fa;
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
     --nav-bg: #f8f9fa;
     --nav-color: #212529;
     --nav-hover: #e9ecef;
     --nav-active: #0d6efd;
     --nav-active-color: #ffffff;
+<<<<<<< HEAD
     
     /* Status Colors */
     --positive-color: #198754;
@@ -57,11 +69,37 @@
 }
 
 /* Base Styles */
+=======
+    --positive-color: #198754;
+    --negative-color: #dc3545;
+    --neutral-color: #0d6efd;
+}
+
+[data-bs-theme="dark"] {
+    /* Dark Theme */
+    --bg-color: #212529;
+    --text-color: #f8f9fa;
+    --border-color: #495057;
+    --card-bg: #2c3237;
+    --table-hover: #343a40;
+    --input-bg: #343a40;
+    --header-bg: #212529;
+    --nav-bg: #212529;
+    --nav-color: #f8f9fa;
+    --nav-hover: #343a40;
+    --positive-color: #75b798;
+    --negative-color: #ea868f;
+    --neutral-color: #6ea8fe;
+}
+
+/* Basis Styles */
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
 }
 
+<<<<<<< HEAD
 /* Header & Navigation */
 .main-header, header {
     background-color: var(--nav-bg);
@@ -82,6 +120,12 @@ body {
     border-color: var(--border-color);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+=======
+/* Card Styles */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 }
 
 .card-header {
@@ -89,6 +133,7 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+<<<<<<< HEAD
 /* Forms */
 .form-control {
     background-color: var(--input-bg);
@@ -131,6 +176,8 @@ body {
     background-color: var(--nav-hover);
 }
 
+=======
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 /* Table Styles */
 .table {
     color: var(--text-color);
@@ -144,6 +191,16 @@ body {
     background-color: var(--table-hover);
 }
 
+<<<<<<< HEAD
+=======
+/* Form Styles */
+.form-control {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 /* Betragsfarben */
 .einnahme { color: var(--negative-color) !important; }
 .ausgabe { color: var(--positive-color) !important; }

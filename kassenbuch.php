@@ -8,7 +8,6 @@ if (!isset($_SESSION['user_role'])) {
 check_login();
 $page_title = 'Übersicht | Kassenbuch';
 require_once 'includes/header.php';
-
 // Pagination-Variablen hinzufügen
 $items_per_page = 25;
 $current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -152,23 +151,29 @@ $result = $stmt->get_result();
         <?php endforeach; ?>
     </datalist>
 
-    <!-- Eingabezeile am Anfang der Tabelle -->
-    <div class="input-row">
-        <div class="form-group">
-            <input type="date" id="new_date" class="form-control" value="<?= date('Y-m-d') ?>">
+    <!-- Eingabezeile über der Tabelle -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col">
+                    <input type="date" id="datum" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                </div>
+                <div class="col">
+                    <input type="text" id="bemerkung" class="form-control" placeholder="Bemerkung" required>
+                </div>
+                <div class="col">
+                    <input type="number" id="einnahme" class="form-control" placeholder="Einnahme" step="0.01" min="0">
+                </div>
+                <div class="col">
+                    <input type="number" id="ausgabe" class="form-control" placeholder="Ausgabe" step="0.01" min="0">
+                </div>
+                <div class="col-auto">
+                    <button onclick="saveEntry()" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Neuer Eintrag
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <input type="text" id="new_description" class="form-control" placeholder="Bemerkung">
-        </div>
-        <div class="form-group">
-            <input type="number" id="new_income" class="form-control" placeholder="Einnahme" step="0.01">
-        </div>
-        <div class="form-group">
-            <input type="number" id="new_expense" class="form-control" placeholder="Ausgabe" step="0.01">
-        </div>
-        <button type="button" class="btn btn-primary" id="addEntryBtn">
-            <i class="bi bi-plus-circle"></i> Neuer Eintrag
-        </button>
     </div>
 
     <!-- Tabellen-Bereich -->
@@ -218,11 +223,11 @@ $result = $stmt->get_result();
                             </span>
                         </td>
                         <td class="text-center">
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-outline-primary btn-action" onclick="editEntry(<?= $row['id'] ?>)">
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-btn" data-id="<?= $row['id'] ?>">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteEntry(<?= $row['id'] ?>)">
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" data-id="<?= $row['id'] ?>">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -402,6 +407,9 @@ $result = $stmt->get_result();
             <!-- ... Filter-Inhalt ... -->
         </div>
     <?php endif; ?>
+
+    <!-- Script einbinden -->
+    <script src="js/kassenbuch/kassenbuch.js"></script>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

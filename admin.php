@@ -93,6 +93,7 @@ require_once 'includes/header.php';
                     </div>
                 </div>
             </div>
+<<<<<<< HEAD
         </div>
     </div>
 
@@ -124,6 +125,8 @@ require_once 'includes/header.php';
                 </div>
                 <button type="submit" class="btn btn-primary">Speichern</button>
             </form>
+=======
+>>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
         </div>
     </div>
 </div>

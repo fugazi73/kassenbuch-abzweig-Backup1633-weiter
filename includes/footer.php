@@ -18,26 +18,26 @@ try {
 }
 ?>
 
-<footer class="footer">
+<footer class="main-footer">
     <div class="container">
-        <div class="footer-content">
-            <div class="footer-links">
-                <a href="help.php" class="footer-link">
-                    <i class="bi bi-question-circle"></i> Hilfe
-                </a>
-                <?php if ($settings['show_impressum'] === '1'): ?>
-                    <a href="impressum.php" class="footer-link">Impressum</a>
-                <?php endif; ?>
-                <?php if ($settings['show_datenschutz'] === '1'): ?>
-                    <a href="datenschutz.php" class="footer-link">Datenschutz</a>
-                <?php endif; ?>
+        <div class="row align-items-center py-3">
+            <div class="col-md-4">
+                <div class="footer-brand">
+                    <img src="images/ME.png" alt="ME Logo" class="footer-logo">
+                    <span>ME</span>
+                </div>
             </div>
-            <p class="footer-text">
-                &copy; <?= date('Y') ?> Kassenbuch System
-                <?php if (isset($_SESSION['user_name'])): ?>
-                    | Angemeldet als: <?= htmlspecialchars($_SESSION['user_name']) ?>
-                <?php endif; ?>
-            </p>
+            <div class="col-md-4 text-center">
+                <p class="mb-0">&copy; <?= date('Y') ?> ME. Alle Rechte vorbehalten.</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="footer-info">
+                    <p class="mb-0">Version 1.0</p>
+                    <a href="mailto:support@me.de" class="footer-link">
+                        <i class="bi bi-envelope"></i> Support
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </footer>

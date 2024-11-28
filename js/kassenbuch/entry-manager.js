@@ -1,15 +1,14 @@
 class EntryManager {
     constructor() {
         this.initializeEventListeners();
+        this.initializeFieldToggle();
     }
 
     initializeEventListeners() {
-        // Neuer Eintrag Button
         document.getElementById('addEntryBtn')?.addEventListener('click', () => {
             this.addNewEntry();
         });
 
-        // Edit und Delete Buttons für bestehende Einträge
         document.querySelectorAll('.edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const row = e.target.closest('tr');
@@ -25,8 +24,29 @@ class EntryManager {
         });
     }
 
+    initializeFieldToggle() {
+        const incomeField = document.getElementById('new_income');
+        const expenseField = document.getElementById('new_expense');
+
+        const toggleFields = (event) => {
+            const sourceField = event.target;
+            const targetField = sourceField === incomeField ? expenseField : incomeField;
+            
+            if (sourceField.value && sourceField.value !== '0') {
+                targetField.disabled = true;
+                targetField.value = '';
+            } else {
+                targetField.disabled = false;
+            }
+        };
+
+        incomeField?.addEventListener('input', toggleFields);
+        expenseField?.addEventListener('input', toggleFields);
+    }
+
     async addNewEntry() {
         const date = document.getElementById('new_date').value;
+        const beleg = document.getElementById('new_beleg').value;
         const description = document.getElementById('new_description').value;
         const income = document.getElementById('new_income').value || '0';
         const expense = document.getElementById('new_expense').value || '0';
@@ -43,17 +63,15 @@ class EntryManager {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    date: date,
-                    description: description,
+                    date,
+                    beleg,
+                    description,
                     income: parseFloat(income),
                     expense: parseFloat(expense)
                 })
             });
 
             if (!response.ok) throw new Error('Fehler beim Speichern');
-
-            // Formular zurücksetzen und Seite neu laden
-            this.resetForm();
             location.reload();
 
         } catch (error) {
