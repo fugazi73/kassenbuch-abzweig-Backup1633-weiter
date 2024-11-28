@@ -1,0 +1,56 @@
+/* Footer Grundstyles */
+.footer {
+    background-color: var(--nav-bg) !important;
+    border-top: 1px solid var(--border-color) !important;
+    width: 100%;
+    margin-top: auto;
+}
+
+/* Logo Styles */
+.footer-logo {
+    height: 40px;
+    width: auto;
+    transition: opacity 0.3s ease;
+}
+
+.footer-logo:hover {
+    opacity: 0.8;
+}
+
+/* Footer Container Spacing */
+.footer .container {
+    max-width: 1800px;
+    padding: 1rem 15px;
+    margin: 0 auto;
+}
+
+/* Body und Main Styles für korrektes Footer-Verhalten */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+
+main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Dark Theme */
+[data-bs-theme="dark"] .footer {
+    background-color: var(--nav-bg) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+    .footer-logo {
+        height: 30px;
+    }
+    
+    .footer .container {
+        padding: 0.75rem 15px;
+    }
+} 

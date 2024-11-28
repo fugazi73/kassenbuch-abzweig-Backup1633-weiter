@@ -1,0 +1,43 @@
+/* Tabellen-Styles */
+.table {
+    font-family: 'Lato', sans-serif !important;
+}
+
+.table td {
+    font-family: 'Lato', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+.money-value,
+td .betrag,
+td .einnahme,
+td .ausgabe,
+td .saldo,
+td .kassenstand,
+.status-value {
+    font-family: 'Lato', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    white-space: nowrap !important;
+}
+
+/* Spaltenbreiten */
+.table th:first-child,
+.table td:first-child { width: 100px; }
+
+.table th:nth-child(2),
+.table td:nth-child(2) { width: 120px; }
+
+.table th:nth-child(4),
+.table td:nth-child(4),
+.table th:nth-child(5),
+.table td:nth-child(5),
+.table th:nth-child(6),
+.table td:nth-child(6),
+.table th:nth-child(7),
+.table td:nth-child(7) {
+    width: 130px;
+    text-align: right;
+} 

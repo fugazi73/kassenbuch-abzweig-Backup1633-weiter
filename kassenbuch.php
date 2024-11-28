@@ -1,9 +1,13 @@
 <?php
+session_start();
 require_once 'config.php';
+if (!isset($_SESSION['user_role'])) {
+    header('Location: login.php');
+    exit;
+}
 check_login();
 $page_title = 'Übersicht | Kassenbuch';
 require_once 'includes/header.php';
-
 // Pagination-Variablen hinzufügen
 $items_per_page = 25;
 $current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -122,9 +126,8 @@ $result = $stmt->get_result();
 
 ?>
 
-<!-- Header-Bereich -->
-<div class="container-fluid" style="max-width: 1400px;">
-    <!-- Header-Zeile mit Kassenbuch-Titel und Saldo -->
+<div class="container mt-4">
+    <!-- Header-Bereich -->
     <div class="row align-items-center mb-4">
         <div class="col-auto">
             <h2 class="mb-0">
@@ -132,101 +135,53 @@ $result = $stmt->get_result();
             </h2>
         </div>
         <div class="col text-end">
-            <span class="ms-3">
-                <span class="text-muted">Aktueller Saldo:</span>
-                <span id="current_saldo" class="fw-bold <?= $current_saldo >= 0 ? 'text-success' : 'text-danger' ?>">
-                    <?= number_format($current_saldo, 2, ',', '.') ?> €
-                </span>
-            </span>
-            <span class="ms-4">
-                <span class="text-muted">Kassenstand:</span>
-                <span id="current_kassenstand" class="fw-bold <?= $current_kassenstand >= 0 ? 'text-success' : 'text-danger' ?>">
+            <div class="kassenstand-display">
+                <span class="kassenstand-label">Kassenstand:</span>
+                <span class="kassenstand-value <?= $current_kassenstand >= 0 ? 'positive' : 'negative' ?>">
                     <?= number_format($current_kassenstand, 2, ',', '.') ?> €
                 </span>
-            </span>
+            </div>
         </div>
     </div>
 
-    <?php if (is_chef_or_admin()): ?>
-    <!-- Statistik-Karten -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Einträge heute</h6>
-                    <h4 id="stats_eintraege_heute" class="mb-0">17 Einträge</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Umsatz heute</h6>
-                    <h4 id="stats_umsatz_heute" class="mb-0">31.250,00 €</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Einträge diesen Monat</h6>
-                    <h4 id="stats_eintraege_monat" class="mb-0">22 Einträge</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Umsatz diesen Monat</h6>
-                    <h4 id="stats_umsatz_monat" class="mb-0">31.372,00 €</h4>
-                </div>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
+    <style>
+    /* Kassenstand Display */
+    .kassenstand-display {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+    }
 
-    <!-- Filter-Bereich -->
-    <?php if (is_chef_or_admin()): ?>
-    <div class="card mb-4">
-        <div class="card-body">
- <form id="filterForm" class="row g-3">
-    <div class="col-md-3">
-        <label class="form-label">Von Datum</label>
-        <input type="date" name="von_datum" class="form-control" value="<?= htmlspecialchars($_GET['von_datum'] ?? '') ?>">
-    </div>
-    <div class="col-md-3">
-        <label class="form-label">Bis Datum</label>
-        <input type="date" name="bis_datum" class="form-control" value="<?= htmlspecialchars($_GET['bis_datum'] ?? '') ?>">
-    </div>
-    <div class="col-md-3">
-        <label class="form-label">Typ</label>
-        <select name="typ" class="form-select">
-            <option value="">Alle</option>
-            <option value="einnahme" <?= ($_GET['typ'] ?? '') === 'einnahme' ? 'selected' : '' ?>>Einnahmen</option>
-            <option value="ausgabe" <?= ($_GET['typ'] ?? '') === 'ausgabe' ? 'selected' : '' ?>>Ausgaben</option>
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label">Bemerkung</label>
-        <select name="bemerkung" class="form-select" data-live-search="true">
-            <option value="">Alle Bemerkungen</option>
-            <?php foreach ($bemerkungen as $bemerkung): ?>
-                <option value="<?= htmlspecialchars($bemerkung) ?>"
-                    <?= ($_GET['bemerkung'] ?? '') === $bemerkung ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($bemerkung) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-    <div class="col-12">
-        <button type="submit" class="btn btn-primary">Filtern</button>
-        <button type="button" class="btn btn-secondary" onclick="resetFilter()">Zurücksetzen</button>
-    </div>
-</form>
+    .kassenstand-label {
+        font-family: 'Lato', sans-serif;
+        font-size: 1.1rem;
+        color: var(--text-color);
+    }
 
-        </div>
-    </div>
-    <?php endif; ?>
+    .kassenstand-value {
+        font-family: 'Lato', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    .kassenstand-value.positive {
+        color: #198754 !important;
+    }
+
+    .kassenstand-value.negative {
+        color: #dc3545 !important;
+    }
+
+    /* Container Anpassungen */
+    .container-fluid {
+        padding: 1rem;
+        margin: 0 auto;
+    }
+    </style>
 
     <!-- Datalist für Bemerkungen -->
     <datalist id="bemerkungen">
@@ -384,535 +339,825 @@ $result = $stmt->get_result();
         </nav>
         <?php endif; ?>
     </div>
-</div>
 
-<!-- Angepasste Styles -->
-<style>
-.container-fluid {
-    padding: 20px;
-    margin: 0 auto;
-}
+    <!-- Angepasste Styles -->
+    <style>
+    .container-fluid {
+        padding: 20px;
+        margin: 0 auto;
+    }
 
-.table-responsive {
-    margin-bottom: 1rem;
-}
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
 
-.pagination {
-    margin-bottom: 2rem;
-}
+    .pagination {
+        margin-bottom: 2rem;
+    }
 
-.page-link {
-    padding: 0.375rem 0.75rem;
-}
+    .page-link {
+        padding: 0.375rem 0.75rem;
+    }
 
-.pagination .bi {
-    font-size: 0.875rem;
-}
+    .pagination .bi {
+        font-size: 0.875rem;
+    }
 
-/* Zusätzliche Abstände am unteren Rand */
-.container-fluid > :last-child {
-    margin-bottom: 40px;
-}
+    /* Zusätzliche Abstände am unteren Rand */
+    .container-fluid > :last-child {
+        margin-bottom: 40px;
+    }
 
-/* Tabellen-Spaltenbreiten optimieren */
-.table th:first-child,
-.table td:first-child {
-    width: 100px; /* Datum */
-}
+    /* Tabellen-Spaltenbreiten optimieren */
+    .table th:first-child,
+    .table td:first-child {
+        width: 100px; /* Datum */
+    }
 
-.table th:nth-child(2),
-.table td:nth-child(2) {
-    width: 120px; /* Bemerkung */
-}
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+        width: 120px; /* Bemerkung */
+    }
 
-.table th:nth-child(4),
-.table td:nth-child(4),
-.table th:nth-child(5),
-.table td:nth-child(5),
-.table th:nth-child(6),
-.table td:nth-child(6),
-.table th:nth-child(7),
-.table td:nth-child(7) {
-    width: 130px; /* Beträge */
-    text-align: right;
-}
+    .table th:nth-child(4),
+    .table td:nth-child(4),
+    .table th:nth-child(5),
+    .table td:nth-child(5),
+    .table th:nth-child(6),
+    .table td:nth-child(6),
+    .table th:nth-child(7),
+    .table td:nth-child(7) {
+        width: 130px; /* Beträge */
+        text-align: right;
+    }
 
-.table th:last-child,
-.table td:last-child {
-    width: 100px; /* Aktionen */
-    text-align: right;
-}
+    .table th:last-child,
+    .table td:last-child {
+        width: 100px; /* Aktionen */
+        text-align: right;
+    }
 
-/* Container für die Tabelle */
-.table-container {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    padding: 1rem;
-    margin-bottom: 2rem;
-}
+    /* Container für die Tabelle */
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
 
-/* Tabelle */
-.table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 1.1rem; /* Größere Schrift */
-}
+    /* Tabelle */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1.1rem; /* Größere Schrift */
+    }
 
-.table thead th {
-    background-color: #f8f9fa;
-    color: #333;
-    font-weight: 700; /* Fettere Schrift */
-    padding: 1.2rem 1rem;
-    text-align: left;
-    border-bottom: 2px solid #dee2e6;
-    font-size: 1.1rem; /* Größere Schrift */
-}
+    .table thead th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: 700; /* Fettere Schrift */
+        padding: 1.2rem 1rem;
+        text-align: left;
+        border-bottom: 2px solid #dee2e6;
+        font-size: 1.1rem; /* Größere Schrift */
+    }
 
-.table tbody td {
-    padding: 1.2rem 1rem;
-    border-bottom: 1px solid #eee;
-    white-space: nowrap;
-}
+    .table tbody td {
+        padding: 1.2rem 1rem;
+        border-bottom: 1px solid #eee;
+        white-space: nowrap;
+    }
 
-.table tbody tr:hover {
-    background-color: #f9f9f9;
-}
+    .table tbody tr:hover {
+        background-color: #f9f9f9;
+    }
 
-/* Beträge formatieren */
-.betrag {
-    font-family: 'Roboto Mono', monospace;
-    font-weight: 600; /* Fettere Schrift */
-    font-size: 1.1rem; /* Größere Schrift */
-    white-space: nowrap;
-}
+    /* Beträge formatieren */
+    .betrag {
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 600; /* Fettere Schrift */
+        font-size: 1.1rem; /* Größere Schrift */
+        white-space: nowrap;
+    }
 
-.betrag-positiv {
-    color: #00a854; /* Helleres Grün */
-}
+    .betrag-positiv {
+        color: #00a854; /* Helleres Grün */
+    }
 
-.betrag-negativ {
-    color: #dc3545; /* Rot */
-}
+    .betrag-negativ {
+        color: #dc3545; /* Rot */
+    }
 
-.kassenstand {
-    color: #0d6efd; /* Blau */
-    font-weight: 700; /* Fettere Schrift */
-}
+    .kassenstand {
+        color: #0d6efd; /* Blau */
+        font-weight: 700; /* Fettere Schrift */
+    }
 
-/* Aktions-Buttons nebeneinander */
-.action-buttons {
-    white-space: nowrap;
-    display: inline-flex;
-    gap: 0.5rem; /* Abstand zwischen den Buttons */
-}
+    /* Aktions-Buttons nebeneinander */
+    .action-buttons {
+        white-space: nowrap;
+        display: inline-flex;
+        gap: 0.5rem; /* Abstand zwischen den Buttons */
+    }
 
-.btn-action {
-    padding: 0.5rem 0.7rem;
-    border-radius: 4px;
-    font-size: 1rem;
-}
+    .btn-action {
+        padding: 0.5rem 0.7rem;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
 
-/* Pagination unten */
-.pagination {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-}
+    /* Pagination unten */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 2rem;
+    }
 
-.pagination .page-item .page-link {
-    padding: 0.7rem 1rem;
-    font-size: 1.1rem;
-    font-weight: 500;
-}
+    .pagination .page-item .page-link {
+        padding: 0.7rem 1rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
 
-.pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
 
-.text-end {
-    text-align: right;
-    white-space: nowrap;
-}
+    .text-end {
+        text-align: right;
+        white-space: nowrap;
+    }
 
-.saldo-container {
-    background-color: #f8f9fa; /* Heller Hintergrund */
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-}
+    .saldo-container {
+        background-color: #f8f9fa; /* Heller Hintergrund */
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
 
-.saldo-text {
-    font-size: 1.2rem; /* Größere Schrift */
-    font-weight: bold;
-    color: #333; /* Dunklere Schriftfarbe */
-}
-</style>
+    .saldo-text {
+        font-size: 1.2rem; /* Größere Schrift */
+        font-weight: bold;
+        color: #333; /* Dunklere Schriftfarbe */
+    }
 
-<!-- Modal für neue Einträge -->
-<div class="modal fade" id="entryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Neuer Eintrag</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="entryForm">
-                    <div class="mb-3">
-                        <label class="form-label">Datum</label>
-                        <input type="date" class="form-control" name="datum" required 
-                               value="<?= date('Y-m-d') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Bemerkung</label>
-                        <input type="text" class="form-control" name="bemerkung" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Einnahme</label>
-                            <input type="number" class="form-control" name="einnahme" 
-                                   step="0.01" min="0">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Ausgabe</label>
-                            <input type="number" class="form-control" name="ausgabe" 
-                                   step="0.01" min="0">
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" onclick="saveEntry()">Speichern</button>
-            </div>
-        </div>
-    </div>
-</div>
+    /* Einheitliche Schriftart für alle Zahlen */
+    .betrag, .kassenstand, .saldo {
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
 
-<!-- Modal für die Bearbeitung -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Eintrag bearbeiten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="editForm" onsubmit="updateEntry(event)">
-                <input type="hidden" name="id" id="edit_id">
+    /* Hervorgehobener Kassenstand-Container oben */
+    .kassenstand-container {
+        background: var(--card-background);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+    }
+
+    .kassenstand-box {
+        display: flex;
+        justify-content: flex-end;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .kassenstand-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .kassenstand-label {
+        font-size: 0.9rem;
+        color: var(--text-color);
+        opacity: 0.8;
+        margin-bottom: 0.3rem;
+    }
+
+    .kassenstand-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+
+    .kassenstand-value.positiv {
+        color: #28a745;
+    }
+
+    .kassenstand-value.negativ {
+        color: #dc3545;
+    }
+
+    /* Status Box Styling */
+    .status-box {
+        display: flex;
+        justify-content: flex-end;
+        gap: 2rem;
+        background: var(--card-background);
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .status-item {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    .status-label {
+        font-size: 1rem;
+        color: var(--text-color);
+        opacity: 0.7;
+    }
+
+    .status-value {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .status-value.positive {
+        color: #28a745 !important;
+    }
+
+    .status-value.negative {
+        color: #dc3545 !important;
+    }
+
+    /* Einheitliche Schriftart für Zahlen in der Tabelle */
+    .table td {
+        font-family: 'Roboto Mono', monospace;
+    }
+
+    .table .betrag,
+    .table .kassenstand {
+        font-weight: 600;
+    }
+
+    /* Gemeinsame Basis für alle Zahlen-Werte */
+    .money-value {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Status Box Styling */
+    .status-box {
+        display: flex;
+        justify-content: flex-end;
+        gap: 2rem;
+        background: var(--card-background);
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .status-value {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Tabellen-Werte */
+    .table td.einnahme, 
+    .table td.ausgabe,
+    .table td.saldo,
+    .table td.kassenstand {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+
+    .table td.einnahme { color: #dc3545 !important; }  /* Rot */
+    .table td.ausgabe { color: #28a745 !important; }   /* Grün */
+    .table td.saldo { color: #0d6efd !important; }     /* Blau */
+    .table td.kassenstand { color: #0d6efd !important; } /* Blau */
+
+    /* Status-Werte Farben */
+    .status-value.positive { color: #28a745 !important; }
+    .status-value.negative { color: #dc3545 !important; }
+
+    /* Basis-Styling für alle Zahlen */
+    .money-value, 
+    td[class$=""],
+    td:has(> span.betrag),
+    .einnahme, 
+    .ausgabe, 
+    .saldo, 
+    .kassenstand,
+    [id^="stats_"] {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Farben für die verschiedenen Werte */
+    td .betrag-positiv,
+    .positive,
+    td.ausgabe,
+    td:has(> span.ausgabe) {
+        color: #28a745 !important;  /* Grün */
+    }
+
+    td .betrag-negativ,
+    .negative,
+    td.einnahme,
+    td:has(> span.einnahme) {
+        color: #dc3545 !important;  /* Rot */
+    }
+
+    td.saldo,
+    td.kassenstand,
+    td:has(> span.saldo),
+    td:has(> span.kassenstand) {
+        color: #0d6efd !important;  /* Blau */
+    }
+
+    /* Status Box bleibt unverändert */
+    .status-box {
+        display: flex;
+        justify-content: flex-end;
+        gap: 2rem;
+        background: var(--card-background);
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Statistik-Karten Zahlen */
+    .card h4 {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Zahlenformat in der Tabelle */
+    .table td {
+        font-variant-numeric: tabular-nums !important; /* Wichtig für einheitliche Zahlenbreite */
+    }
+
+    .money-value,
+    td .betrag,
+    td .einnahme,
+    td .ausgabe,
+    td .saldo,
+    td .kassenstand {
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.02em !important; /* Leicht engerer Zeichenabstand */
+        white-space: nowrap !important;
+    }
+
+    /* Farben beibehalten */
+    .einnahme, td .einnahme { color: #dc3545 !important; } /* Rot */
+    .ausgabe, td .ausgabe { color: #28a745 !important; }   /* Grün */
+    .saldo, td .saldo, 
+    .kassenstand, td .kassenstand { color: #0d6efd !important; } /* Blau */
+    </style>
+
+    <!-- Modal für neue Einträge -->
+    <div class="modal fade" id="entryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Neuer Eintrag</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Datum</label>
-                        <input type="date" name="datum" id="edit_datum" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Beleg</label>
-                        <input type="text" name="beleg" id="edit_beleg" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Bemerkung</label>
-                        <input type="text" name="bemerkung" id="edit_bemerkung" class="form-control">
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Einnahme</label>
-                            <input type="number" name="einnahme" id="edit_einnahme" 
-                                   class="form-control" step="0.01" min="0">
+                    <form id="entryForm">
+                        <div class="mb-3">
+                            <label class="form-label">Datum</label>
+                            <input type="date" class="form-control" name="datum" required 
+                                   value="<?= date('Y-m-d') ?>">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Ausgabe</label>
-                            <input type="number" name="ausgabe" id="edit_ausgabe" 
-                                   class="form-control" step="0.01" min="0">
+                        <div class="mb-3">
+                            <label class="form-label">Bemerkung</label>
+                            <input type="text" class="form-control" name="bemerkung" required>
                         </div>
-                    </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Einnahme</label>
+                                <input type="number" class="form-control" name="einnahme" 
+                                       step="0.01" min="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ausgabe</label>
+                                <input type="number" class="form-control" name="ausgabe" 
+                                       step="0.01" min="0">
+                            </div>
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEntry()">Speichern</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- JavaScript für das Modal und die Einträge -->
-<script>
-function showNewEntryModal() {
-    const modal = new bootstrap.Modal(document.getElementById('entryModal'));
-    modal.show();
-}
+    <!-- Modal für die Bearbeitung -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Eintrag bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editForm" onsubmit="updateEntry(event)">
+                    <input type="hidden" name="id" id="edit_id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Datum</label>
+                            <input type="date" name="datum" id="edit_datum" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Beleg</label>
+                            <input type="text" name="beleg" id="edit_beleg" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Bemerkung</label>
+                            <input type="text" name="bemerkung" id="edit_bemerkung" class="form-control">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Einnahme</label>
+                                <input type="number" name="einnahme" id="edit_einnahme" 
+                                       class="form-control" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ausgabe</label>
+                                <input type="number" name="ausgabe" id="edit_ausgabe" 
+                                       class="form-control" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-function saveEntry() {
-    const form = document.getElementById('quickEntryForm');
-    const formData = new FormData(form);
-
-    // Validierung
-    const einnahme = parseFloat(formData.get('einnahme')) || 0;
-    const ausgabe = parseFloat(formData.get('ausgabe')) || 0;
-
-    if (!formData.get('datum')) {
-        alert('Bitte ein Datum eingeben');
-        return;
+    <!-- JavaScript für das Modal und die Einträge -->
+    <script>
+    function showNewEntryModal() {
+        const modal = new bootstrap.Modal(document.getElementById('entryModal'));
+        modal.show();
     }
 
-    if (einnahme <= 0 && ausgabe <= 0) {
-        alert('Bitte entweder eine Einnahme oder eine Ausgabe eingeben');
-        return;
-    }
+    function saveEntry() {
+        const form = document.getElementById('quickEntryForm');
+        const formData = new FormData(form);
 
-    fetch('save_entry.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            throw new Error(data.message || 'Fehler beim Speichern des Eintrags');
+        // Validierung
+        const einnahme = parseFloat(formData.get('einnahme')) || 0;
+        const ausgabe = parseFloat(formData.get('ausgabe')) || 0;
+
+        if (!formData.get('datum')) {
+            alert('Bitte ein Datum eingeben');
+            return;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten: ' + error.message);
-    });
-}
 
-// Einnahme/Ausgabe-Felder gegenseitig deaktivieren
-document.addEventListener('DOMContentLoaded', function() {
-    const forms = ['quickEntryForm', 'editForm'];
-    forms.forEach(formId => {
-        const form = document.getElementById(formId);
-        const einnahmeField = form.querySelector('input[name="einnahme"]');
-        const ausgabeField = form.querySelector('input[name="ausgabe"]');
+        if (einnahme <= 0 && ausgabe <= 0) {
+            alert('Bitte entweder eine Einnahme oder eine Ausgabe eingeben');
+            return;
+        }
 
-        einnahmeField.addEventListener('input', function() {
-            ausgabeField.disabled = this.value && this.value > 0;
-        });
-
-        ausgabeField.addEventListener('input', function() {
-            einnahmeField.disabled = this.value && this.value > 0;
-        });
-    });
-});
-
-function editEntry(id) {
-    fetch(`get_entry.php?id=${id}`)
+        fetch('save_entry.php', {
+            method: 'POST',
+            body: formData
+        })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('edit_id').value = data.entry.id;
-                document.getElementById('edit_datum').value = data.entry.datum;
-                document.getElementById('edit_beleg').value = data.entry.beleg;
-                document.getElementById('edit_bemerkung').value = data.entry.bemerkung;
-                document.getElementById('edit_einnahme').value = data.entry.einnahme || '';
-                document.getElementById('edit_ausgabe').value = data.entry.ausgabe || '';
-                
-                const modal = new bootstrap.Modal(document.getElementById('editModal'));
-                modal.show();
+                location.reload();
+            } else {
+                throw new Error(data.message || 'Fehler beim Speichern des Eintrags');
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ein Fehler ist aufgetreten: ' + error.message);
         });
-}
-
-// Automatische Aktualisierung bei Änderungen
-document.addEventListener('DOMContentLoaded', function() {
-    const editForm = document.getElementById('editForm');
-    const einnahmeInput = editForm.querySelector('input[name="einnahme"]');
-    const ausgabeInput = editForm.querySelector('input[name="ausgabe"]');
-    
-    // Event-Listener für Änderungen
-    [einnahmeInput, ausgabeInput].forEach(input => {
-        input.addEventListener('input', function() {
-            // Automatisch nach kurzer Verzögerung speichern
-            clearTimeout(input.saveTimeout);
-            input.saveTimeout = setTimeout(() => {
-                editForm.dispatchEvent(new Event('submit'));
-            }, 500); // 500ms Verzögerung
-        });
-    });
-});
-
-// Bestehende updateEntry-Funktion überarbeiten
-function updateEntry(event) {
-    event.preventDefault();
-    
-    // Nur fortfahren wenn tatsächlich der Submit-Button geklickt wurde
-    if (event.submitter?.type !== 'submit') {
-        return;
     }
 
-    const formData = new FormData(event.target);
+    // Einnahme/Ausgabe-Felder gegenseitig deaktivieren
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = ['quickEntryForm', 'editForm'];
+        forms.forEach(formId => {
+            const form = document.getElementById(formId);
+            const einnahmeField = form.querySelector('input[name="einnahme"]');
+            const ausgabeField = form.querySelector('input[name="ausgabe"]');
 
-    // Validierung
-    const einnahme = formData.get('einnahme');
-    const ausgabe = formData.get('ausgabe');
+            einnahmeField.addEventListener('input', function() {
+                ausgabeField.disabled = this.value && this.value > 0;
+            });
 
-    if ((einnahme && ausgabe) || (parseFloat(einnahme) < 0 || parseFloat(ausgabe) < 0)) {
-        alert('Bitte entweder nur Einnahme oder nur Ausgabe eingeben (positive Zahlen)');
-        return;
-    }
-
-    console.log('Sende Update-Daten:', Object.fromEntries(formData));
-
-    fetch('update_entry.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        console.log('Status:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Server response:', data);
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-            modal.hide();
-            location.reload();
-        } else {
-            throw new Error(data.message || 'Fehler beim Aktualisieren des Eintrags');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten: ' + error.message);
+            ausgabeField.addEventListener('input', function() {
+                einnahmeField.disabled = this.value && this.value > 0;
+            });
+        });
     });
-}
 
-function deleteEntry(id) {
-    if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
-        fetch(`delete_entry.php?id=${id}`, { method: 'POST' })
+    function editEntry(id) {
+        fetch(`get_entry.php?id=${id}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Fehler beim Löschen des Eintrags');
+                    document.getElementById('edit_id').value = data.entry.id;
+                    document.getElementById('edit_datum').value = data.entry.datum;
+                    document.getElementById('edit_beleg').value = data.entry.beleg;
+                    document.getElementById('edit_bemerkung').value = data.entry.bemerkung;
+                    document.getElementById('edit_einnahme').value = data.entry.einnahme || '';
+                    document.getElementById('edit_ausgabe').value = data.entry.ausgabe || '';
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+                    modal.show();
                 }
             });
     }
-}
-</script>
 
-<!-- Zusätzliche Styles -->
-<style>
-.container-fluid {
-    padding: 20px;
-    max-width: 1800px; /* oder die gewünschte maximale Breite */
-    margin: 0 auto;
-}
-
-.btn-primary {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.btn-primary:hover {
-    background-color: #0b5ed7;
-    border-color: #0a58ca;
-}
-
-.card {
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-}
-
-/* Verbesserte Abstände */
-.table-responsive {
-    margin-bottom: 2rem;
-}
-
-/* Verbesserte Text-Styles */
-.fw-bold {
-    font-weight: 600;
-}
-</style>
-
-<!-- Bootstrap Bundle hinzufügen -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    function loadStats() {
-        const stats = ['eintraege_heute', 'umsatz_heute', 'eintraege_monat', 'umsatz_monat'];
+    // Automatische Aktualisierung bei Änderungen
+    document.addEventListener('DOMContentLoaded', function() {
+        const editForm = document.getElementById('editForm');
+        const einnahmeInput = editForm.querySelector('input[name="einnahme"]');
+        const ausgabeInput = editForm.querySelector('input[name="ausgabe"]');
         
-        stats.forEach(stat => {
-            fetch('get_stats.php?stat=' + stat)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const element = document.getElementById('stats_' + stat);
-                        if (element) {
-                            element.textContent = data.value;
-                        }
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+        // Event-Listener für Änderungen
+        [einnahmeInput, ausgabeInput].forEach(input => {
+            input.addEventListener('input', function() {
+                // Automatisch nach kurzer Verzögerung speichern
+                clearTimeout(input.saveTimeout);
+                input.saveTimeout = setTimeout(() => {
+                    editForm.dispatchEvent(new Event('submit'));
+                }, 500); // 500ms Verzögerung
+            });
+        });
+    });
+
+    // Bestehende updateEntry-Funktion überarbeiten
+    function updateEntry(event) {
+        event.preventDefault();
+        
+        // Nur fortfahren wenn tatsächlich der Submit-Button geklickt wurde
+        if (event.submitter?.type !== 'submit') {
+            return;
+        }
+
+        const formData = new FormData(event.target);
+
+        // Validierung
+        const einnahme = formData.get('einnahme');
+        const ausgabe = formData.get('ausgabe');
+
+        if ((einnahme && ausgabe) || (parseFloat(einnahme) < 0 || parseFloat(ausgabe) < 0)) {
+            alert('Bitte entweder nur Einnahme oder nur Ausgabe eingeben (positive Zahlen)');
+            return;
+        }
+
+        console.log('Sende Update-Daten:', Object.fromEntries(formData));
+
+        fetch('update_entry.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log('Status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Server response:', data);
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                modal.hide();
+                location.reload();
+            } else {
+                throw new Error(data.message || 'Fehler beim Aktualisieren des Eintrags');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ein Fehler ist aufgetreten: ' + error.message);
         });
     }
 
-    // Initial laden
-    loadStats();
-    
-    // Alle 60 Sekunden aktualisieren
-    setInterval(loadStats, 60000);
-});
-</script>
+    function deleteEntry(id) {
+        if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
+            fetch(`delete_entry.php?id=${id}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Fehler beim Löschen des Eintrags');
+                    }
+                });
+        }
+    }
+    </script>
 
-<!-- JavaScript für Select2 und Filter-Funktionalität -->
-<script>
-$(document).ready(function() {
-    // Initialisiere Select2 mit Suchfunktion
-    $('select[name="bemerkung"]').select2({
-        placeholder: 'Bemerkung auswählen',
-        allowClear: true,
-        width: '100%',
-        language: 'de',
-        theme: 'bootstrap4',
-        // Aktiviere die Suchfunktion
-        minimumInputLength: 0,
-        minimumResultsForSearch: 0
+    <!-- Zusätzliche Styles -->
+    <style>
+    .container-fluid {
+        padding: 20px;
+        max-width: 1800px; /* oder die gewünschte maximale Breite */
+        margin: 0 auto;
+    }
+
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .btn-primary:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+    }
+
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    /* Verbesserte Abstände */
+    .table-responsive {
+        margin-bottom: 2rem;
+    }
+
+    /* Verbesserte Text-Styles */
+    .fw-bold {
+        font-weight: 600;
+    }
+    </style>
+
+    <!-- Bootstrap Bundle hinzufügen -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function loadStats() {
+            const stats = ['eintraege_heute', 'umsatz_heute', 'eintraege_monat', 'umsatz_monat'];
+            
+            stats.forEach(stat => {
+                fetch('get_stats.php?stat=' + stat)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const element = document.getElementById('stats_' + stat);
+                            if (element) {
+                                element.textContent = data.value;
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        }
+
+        // Initial laden
+        loadStats();
+        
+        // Alle 60 Sekunden aktualisieren
+        setInterval(loadStats, 60000);
     });
-});
+    </script>
 
-function resetFilter() {
-    const urlParams = new URLSearchParams(window.location.search);
-
-    // Setze alle Formularfelder zurück
-    document.getElementById('filterForm').reset();
-
-    // Entferne nur die Filter-bezogenen Parameter
-    urlParams.delete('von_datum');
-    urlParams.delete('bis_datum');
-    urlParams.delete('typ');
-    urlParams.delete('bemerkung');
-
-    // Aktualisiere die URL ohne die Seite neu zu laden
-    history.replaceState(null, '', '?' + urlParams.toString());
-
-    // Neu laden der Seite mit den ursprünglichen Parametern
-    location.reload();
-}
-
-// Füge Click-Event für den Zurücksetzen-Button hinzu
-$(document).ready(function() {
-    $('.btn-secondary').on('click', function(e) {
-        e.preventDefault();
-        resetFilter();
+    <!-- JavaScript für Select2 und Filter-Funktionalität -->
+    <script>
+    $(document).ready(function() {
+        // Initialisiere Select2 mit Suchfunktion
+        $('select[name="bemerkung"]').select2({
+            placeholder: 'Bemerkung auswählen',
+            allowClear: true,
+            width: '100%',
+            language: 'de',
+            theme: 'bootstrap4',
+            // Aktiviere die Suchfunktion
+            minimumInputLength: 0,
+            minimumResultsForSearch: 0
+        });
     });
-});
-</script>
 
-<!-- Fügen Sie die Select2 CSS und JS ein -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    function resetFilter() {
+        const urlParams = new URLSearchParams(window.location.search);
 
-<!-- Fügen Sie die Select2 Bootstrap Theme CSS hinzu -->
-<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css" rel="stylesheet">
+        // Setze alle Formularfelder zurück
+        document.getElementById('filterForm').reset();
+
+        // Entferne nur die Filter-bezogenen Parameter
+        urlParams.delete('von_datum');
+        urlParams.delete('bis_datum');
+        urlParams.delete('typ');
+        urlParams.delete('bemerkung');
+
+        // Aktualisiere die URL ohne die Seite neu zu laden
+        history.replaceState(null, '', '?' + urlParams.toString());
+
+        // Neu laden der Seite mit den ursprünglichen Parametern
+        location.reload();
+    }
+
+    // Füge Click-Event für den Zurücksetzen-Button hinzu
+    $(document).ready(function() {
+        $('.btn-secondary').on('click', function(e) {
+            e.preventDefault();
+            resetFilter();
+        });
+    });
+    </script>
+
+    <!-- Fügen Sie die Select2 CSS und JS ein -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <!-- Fügen Sie die Select2 Bootstrap Theme CSS hinzu -->
+    <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css" rel="stylesheet">
+
+    <!-- Füge im Header den Lato Font hinzu -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+    /* Basis-Schriftart für die gesamte Tabelle */
+    .table {
+        font-family: 'Lato', sans-serif !important;
+    }
+
+    /* Einheitliches Styling für alle Zahlen in der Tabelle */
+    .table td {
+        font-family: 'Lato', sans-serif !important;
+        font-size: 1.1rem !important;  /* Größere Schrift */
+        font-variant-numeric: tabular-nums !important;
+    }
+
+    /* Spezielles Styling für Geldbeträge */
+    .money-value,
+    td .betrag,
+    td .einnahme,
+    td .ausgabe,
+    td .saldo,
+    td .kassenstand,
+    .status-value {
+        font-family: 'Lato', sans-serif !important;
+        font-size: 1.1rem !important;  /* Noch etwas größer für Beträge */
+        font-weight: 700 !important;    /* Fetter für bessere Lesbarkeit */
+        letter-spacing: -0.01em !important;
+        white-space: nowrap !important;
+    }
+
+    /* Farben für Geldbeträge mit besseren Kontrasten */
+    .einnahme, td .einnahme { 
+        color: #dc3545 !important; 
+        font-weight: 700 !important;
+    } 
+
+    .ausgabe, td .ausgabe { 
+        color: #198754 !important; 
+        font-weight: 700 !important;
+    } 
+
+    .saldo, td .saldo, 
+    .kassenstand, td .kassenstand { 
+        color: #0d6efd !important; 
+        font-weight: 700 !important;
+    } 
+
+    /* Tabellenkopf einheitlich */
+    .table thead th {
+        font-family: 'Lato', sans-serif !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        color: #495057 !important;
+    }
+
+    /* Bemerkungen und andere Text-Spalten */
+    .table td:not(.einnahme):not(.ausgabe):not(.saldo):not(.kassenstand) {
+        font-family: 'Lato', sans-serif !important;
+        font-size: 1rem !important;
+        font-weight: 400 !important;
+    }
+    </style>
+
+    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['Administrator', 'admin', 'Admin', 'Chef'])): ?>
+        <!-- Filter-Bereich -->
+        <div class="filter-container mb-4">
+            <!-- ... Filter-Inhalt ... -->
+        </div>
+    <?php endif; ?>
+</div>
 
 <?php require_once 'includes/footer.php'; ?>
 </body>
 </html>
+
