@@ -102,7 +102,5 @@ $savedTheme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'dark';
             </div>
         </nav>
     </header>
-    <main class="container my-4">
-    </main>
 </body>
 </html> 

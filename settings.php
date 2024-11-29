@@ -39,7 +39,7 @@ $custom_columns = [];
 
 // Hole alle Spalten aus der kassenbuch_eintraege Tabelle
 $columns_query = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
-$default_columns = ['id', 'datum', 'beleg_nr', 'beleg', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id', 'created_at'];
+$default_columns = ['id', 'datum', 'beleg_nr', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id', 'created_at'];
 
 while ($column = $columns_query->fetch_assoc()) {
     // Wenn es keine Standard-Spalte ist, füge sie zu custom_columns hinzu
@@ -71,7 +71,6 @@ if (!empty($custom_columns)) {
 $default_columns = [
     'datum' => ['name' => 'Datum', 'type' => 'date', 'required' => true],
     'beleg_nr' => ['name' => 'Beleg-Nr.', 'type' => 'text', 'required' => true],
-    'beleg' => ['name' => 'Beleg', 'type' => 'text', 'required' => false],
     'bemerkung' => ['name' => 'Bemerkung', 'type' => 'text', 'required' => true],
     'einnahme' => ['name' => 'Einnahme', 'type' => 'decimal', 'required' => true],
     'ausgabe' => ['name' => 'Ausgabe', 'type' => 'decimal', 'required' => true]
@@ -474,283 +473,293 @@ function updateSetting($conn, $key, $value) {
 require_once 'includes/header.php';
 ?>
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1>Einstellungen</h1>
-                <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle" type="button" id="adminDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-gear"></i> Administration
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                        <li><a class="dropdown-item" href="admin.php"><i class="bi bi-people"></i> Benutzerverwaltung</a></li>
-                        <li><a class="dropdown-item" href="backup.php"><i class="bi bi-download"></i> Backup & Restore</a></li>
-                        <li><a class="dropdown-item" href="settings.php"><i class="bi bi-gear"></i> Einstellungen</a></li>
-                    </ul>
-                </div>
+<div class="settings-page">
+    <div class="container">
+        <div class="settings-header d-flex justify-content-between align-items-center">
+            <h1>Einstellungen</h1>
+            <div class="btn-group">
+                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-gear"></i> Administration
+                </button>
+                <ul class="dropdown-menu">
+                    <!-- Dropdown-Menü-Einträge -->
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header p-0">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#basis" role="tab">
+                            <i class="bi bi-gear"></i> Basis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#spalten" role="tab">
+                            <i class="bi bi-table"></i> Spalten
+                        </a>
+                    </li>
+                </ul>
             </div>
 
-            <!-- Tabs für verschiedene Einstellungsbereiche -->
-            <div class="card">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#basics" role="tab">
-                                <i class="bi bi-gear-fill"></i> Basis
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#columns" role="tab">
-                                <i class="bi bi-table"></i> Spalten
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#cash" role="tab">
-                                <i class="bi bi-cash"></i> Kasse
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="card-body p-0">
-                    <div class="tab-content">
-                        <!-- Basis-Einstellungen Tab -->
-                        <div class="tab-pane fade show active p-3" id="basics" role="tabpanel">
-                            <div class="row g-3">
-                                <!-- Logo-Upload Bereich -->
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-body">
-                                            <h6 class="card-title"><i class="bi bi-image"></i> Logos</h6>
-                                            <div class="row g-3">
-                                                <div class="col-6">
-                                                    <label class="d-block mb-2">Hell</label>
-                                                    <div class="logo-preview mb-2">
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Basis Tab -->
+                    <div class="tab-pane fade show active" id="basis" role="tabpanel">
+                        <div class="row g-4">
+                            <!-- Kasseneinstellungen -->
+                            <div class="col-12">
+                                <div class="settings-section">
+                                    <h5 class="mb-4"><i class="bi bi-cash"></i> Kasseneinstellungen</h5>
+                                    <div class="row g-4">
+                                        <!-- Kassenstart -->
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">Kassenstart</h6>
+                                                    <?php if ($startbetrag_info): ?>
+                                                    <div class="alert alert-info">
+                                                        <strong>Aktueller Startbetrag:</strong> 
+                                                        <?= number_format($startbetrag_info['betrag'], 2, ',', '.') ?> € 
+                                                        (<?= date('d.m.Y', strtotime($startbetrag_info['datum'])) ?>)
+                                                    </div>
+                                                    <?php endif; ?>
+                                                    <form id="kassenstartForm">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Datum</label>
+                                                                <input type="date" class="form-control" id="startdatum" name="startdatum" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Betrag (€)</label>
+                                                                <input type="number" step="0.01" class="form-control" id="startbetrag" name="startbetrag" required>
+                                                            </div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary mt-3">
+                                                            <i class="bi bi-save"></i> Speichern
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Kassensturz -->
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">Kassensturz</h6>
+                                                    <form id="kassensturzForm">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Datum</label>
+                                                                <input type="date" class="form-control" id="kassensturz_datum" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label">Ist-Betrag (€)</label>
+                                                                <input type="number" step="0.01" class="form-control" id="kassensturz_betrag" required>
+                                                            </div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary mt-3">
+                                                            <i class="bi bi-calculator"></i> Durchführen
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Logo Einstellungen -->
+                            <div class="col-12">
+                                <div class="settings-section">
+                                    <h5 class="mb-4"><i class="bi bi-image"></i> Logo Einstellungen</h5>
+                                    <div class="row g-4">
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">Logo (Hell)</h6>
+                                                    <div class="logo-preview mb-3">
                                                         <?php if (!empty($settings['logo_light'])): ?>
-                                                            <img src="<?= htmlspecialchars($logo_light) ?>" class="img-fluid">
+                                                            <img src="<?= htmlspecialchars($settings['logo_light']) ?>" alt="Helles Logo">
+                                                        <?php else: ?>
+                                                            <div class="upload-placeholder">
+                                                                <i class="bi bi-cloud-upload"></i>
+                                                                <span>Logo hochladen</span>
+                                                            </div>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <input type="file" class="form-control form-control-sm" name="logo_light">
+                                                    <input type="file" class="form-control" name="logo_light" accept="image/*">
                                                 </div>
-                                                <div class="col-6">
-                                                    <label class="d-block mb-2">Dunkel</label>
-                                                    <div class="logo-preview mb-2 bg-dark">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">Logo (Dunkel)</h6>
+                                                    <div class="logo-preview dark mb-3">
                                                         <?php if (!empty($settings['logo_dark'])): ?>
-                                                            <img src="<?= htmlspecialchars($logo_dark) ?>" class="img-fluid">
+                                                            <img src="<?= htmlspecialchars($settings['logo_dark']) ?>" alt="Dunkles Logo">
+                                                        <?php else: ?>
+                                                            <div class="upload-placeholder">
+                                                                <i class="bi bi-cloud-upload"></i>
+                                                                <span>Logo hochladen</span>
+                                                            </div>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <input type="file" class="form-control form-control-sm" name="logo_dark">
+                                                    <input type="file" class="form-control" name="logo_dark" accept="image/*">
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Seitenname & Weitere Basis-Einstellungen -->
-                                <div class="col-md-6">
-                                    <div class="card h-100">
+                            </div>
+
+                            <!-- Weitere Basis-Einstellungen -->
+                            <div class="col-12">
+                                <div class="settings-section">
+                                    <h5 class="mb-4"><i class="bi bi-gear"></i> Weitere Einstellungen</h5>
+                                    <div class="card">
                                         <div class="card-body">
-                                            <h6 class="card-title"><i class="bi bi-pencil"></i> Allgemein</h6>
-                                            <div class="mb-3">
-                                                <label class="form-label">Seitenname</label>
-                                                <input type="text" class="form-control" name="site_name" 
-                                                       value="<?= htmlspecialchars($site_name) ?>">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Seitenname</label>
+                                                    <input type="text" class="form-control" name="site_name" 
+                                                           value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>">
+                                                </div>
+                                                <!-- Hier können weitere Einstellungen hinzugefügt werden -->
                                             </div>
-                                            <!-- Weitere allgemeine Einstellungen hier -->
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Spalten-Konfiguration Tab -->
-                        <div class="tab-pane fade p-3" id="columns" role="tabpanel">
-                            <div class="accordion" id="columnsAccordion">
-                                <!-- Standard-Spalten Accordion -->
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#standardColumns">
-                                            Standard-Spalten
-                                        </button>
-                                    </h2>
-                                    <div id="standardColumns" class="accordion-collapse collapse show">
-                                        <div class="accordion-body p-2">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm align-middle">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Spalte</th>
-                                                            <th>Anzeigename</th>
-                                                            <th>Excel</th>
-                                                            <th>Sichtbar</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php foreach ($columns_config as $key => $config): 
-                                                            if (isset($default_columns[$key])): ?>
-                                                        <tr>
-                                                            <td><?= htmlspecialchars($key) ?></td>
-                                                            <td>
-                                                                <input type="text" class="form-control form-control-sm"
-                                                                       name="columns[default][<?= $key ?>][display_name]"
-                                                                       value="<?= htmlspecialchars($config['display_name']) ?>">
-                                                            </td>
-                                                            <td>
-                                                                <select class="form-select form-select-sm" 
-                                                                        name="columns[default][<?= $key ?>][excel_column]">
-                                                                    <option value="">-</option>
-                                                                    <?php foreach (range('A', 'Z') as $col): ?>
-                                                                        <option value="<?= $col ?>" 
-                                                                            <?= ($config['excel_column'] === $col) ? 'selected' : '' ?>>
-                                                                            <?= $col ?>
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check">
-                                                                    <input type="checkbox" class="form-check-input"
-                                                                           name="columns[default][<?= $key ?>][visible]"
-                                                                           <?= $config['visible'] ? 'checked' : '' ?>
-                                                                           <?= $config['required'] ? 'disabled' : '' ?>>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                        <?php endif; endforeach; ?>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
+                    <!-- Spalten Tab -->
+                    <div class="tab-pane fade" id="spalten" role="tabpanel">
+                        <!-- Standard-Spalten -->
+                        <div class="settings-section mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Standard-Spalten</h5>
                                 </div>
-
-                                <!-- Benutzerdefinierte Spalten Accordion -->
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#customColumns">
-                                            Benutzerdefinierte Spalten
-                                        </button>
-                                    </h2>
-                                    <div id="customColumns" class="accordion-collapse collapse">
-                                        <div class="accordion-body p-2">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm align-middle" id="customColumnsTable">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Anzeigename</th>
-                                                            <th>Typ</th>
-                                                            <th>Excel</th>
-                                                            <th>Sichtbar</th>
-                                                            <th></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php foreach ($columns_config as $key => $config): 
-                                                            if (!isset($default_columns[$key]) && !in_array($key, $system_columns)): ?>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="text" class="form-control form-control-sm"
-                                                                       name="columns[custom][][name]"
-                                                                       value="<?= htmlspecialchars($key) ?>">
-                                                            </td>
-                                                            <td>
-                                                                <input type="text" class="form-control form-control-sm"
-                                                                       name="columns[custom][][display_name]"
-                                                                       value="<?= htmlspecialchars($config['display_name']) ?>">
-                                                            </td>
-                                                            <td>
-                                                                <select class="form-select form-select-sm" name="columns[custom][][type]">
-                                                                    <option value="text" <?= $config['type'] === 'text' ? 'selected' : '' ?>>Text</option>
-                                                                    <option value="date" <?= $config['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
-                                                                    <option value="decimal" <?= $config['type'] === 'decimal' ? 'selected' : '' ?>>Dezimal</option>
-                                                                    <option value="integer" <?= $config['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
-                                                                </select>
-                                                            </td>
-                                                            <td>
-                                                                <select class="form-select form-select-sm" name="columns[custom][][excel_column]">
-                                                                    <option value="">-</option>
-                                                                    <?php foreach (range('A', 'Z') as $col): ?>
-                                                                        <option value="<?= $col ?>" 
-                                                                            <?= ($config['excel_column'] === $col) ? 'selected' : '' ?>>
-                                                                            <?= $col ?>
-                                                                        </option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check">
-                                                                    <input type="checkbox" class="form-check-input"
-                                                                           name="columns[custom][][visible]"
-                                                                           <?= $config['visible'] ? 'checked' : '' ?>>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger delete-column">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <?php endif; endforeach; ?>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <button type="button" class="btn btn-sm btn-secondary" id="addColumnBtn">
-                                                <i class="bi bi-plus-circle"></i> Neue Spalte
-                                            </button>
-                                        </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Spalte</th>
+                                                    <th>Anzeigename</th>
+                                                    <th>Excel</th>
+                                                    <th>Sichtbar</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($default_columns as $key => $config): ?>
+                                                <tr>
+                                                    <td class="text-muted"><?= htmlspecialchars($key) ?></td>
+                                                    <td>
+                                                        <input type="text" class="form-control" 
+                                                               name="columns[default][<?= $key ?>][display_name]" 
+                                                               value="<?= htmlspecialchars($config['name']) ?>">
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select" name="columns[default][<?= $key ?>][excel_column]">
+                                                            <option value="">-</option>
+                                                            <?php foreach (range('A', 'Z') as $col): ?>
+                                                                <option value="<?= $col ?>"><?= $col ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" 
+                                                                   name="columns[default][<?= $key ?>][visible]" 
+                                                                   <?= $config['required'] ? 'checked disabled' : '' ?>>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Kassen-Einstellungen Tab -->
-                        <div class="tab-pane fade p-3" id="cash" role="tabpanel">
-                            <div class="row g-3">
-                                <!-- Kassenstart -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h6 class="card-title"><i class="bi bi-cash-stack"></i> Kassenstart</h6>
-                                            <?php if ($startbetrag_info): ?>
-                                                <div class="alert alert-info py-2">
-                                                    Aktuell: <?= number_format($startbetrag_info['betrag'], 2, ',', '.') ?> € 
-                                                    (<?= date('d.m.Y', strtotime($startbetrag_info['datum'])) ?>)
-                                                </div>
-                                            <?php endif; ?>
-                                            <div class="row g-2">
-                                                <div class="col-md-6">
-                                                    <label class="form-label">Datum</label>
-                                                    <input type="date" class="form-control form-control-sm" id="startdatum" name="startdatum">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">Betrag (€)</label>
-                                                    <input type="number" step="0.01" class="form-control form-control-sm" id="startbetrag" name="startbetrag">
-                                                </div>
-                                            </div>
-                                            <button type="submit" class="btn btn-primary btn-sm mt-2">Speichern</button>
-                                        </div>
-                                    </div>
+                        <!-- Benutzerdefinierte Spalten -->
+                        <div class="settings-section">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Benutzerdefinierte Spalten</h5>
+                                    <button type="button" class="btn btn-primary btn-sm" id="addColumnBtn">
+                                        <i class="bi bi-plus-lg"></i> Neue Spalte
+                                    </button>
                                 </div>
-
-                                <!-- Kassensturz -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h6 class="card-title"><i class="bi bi-calculator"></i> Kassensturz</h6>
-                                            <div class="row g-2">
-                                                <div class="col-md-6">
-                                                    <label class="form-label">Datum</label>
-                                                    <input type="date" class="form-control form-control-sm" id="kassensturz_datum">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">Ist-Betrag (€)</label>
-                                                    <input type="number" step="0.01" class="form-control form-control-sm" id="kassensturz_betrag">
-                                                </div>
-                                            </div>
-                                            <button type="button" class="btn btn-primary btn-sm mt-2">Durchführen</button>
-                                        </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Anzeigename</th>
+                                                    <th>Typ</th>
+                                                    <th>Excel</th>
+                                                    <th>Sichtbar</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="customColumnsContainer">
+                                                <?php foreach ($columns_config as $key => $config): 
+                                                    if (!isset($default_columns[$key])): ?>
+                                                <tr>
+                                                    <td>
+                                                        <input type="text" class="form-control" 
+                                                               name="columns[custom][][name]" 
+                                                               value="<?= htmlspecialchars($key) ?>">
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="form-control" 
+                                                               name="columns[custom][][display_name]" 
+                                                               value="<?= htmlspecialchars($config['display_name']) ?>">
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select" name="columns[custom][][type]">
+                                                            <option value="text" <?= $config['type'] === 'text' ? 'selected' : '' ?>>Text</option>
+                                                            <option value="date" <?= $config['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
+                                                            <option value="decimal" <?= $config['type'] === 'decimal' ? 'selected' : '' ?>>Dezimal</option>
+                                                            <option value="integer" <?= $config['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select" name="columns[custom][][excel_column]">
+                                                            <option value="">-</option>
+                                                            <?php foreach (range('A', 'Z') as $col): ?>
+                                                                <option value="<?= $col ?>" 
+                                                                    <?= ($config['excel_column'] === $col) ? 'selected' : '' ?>>
+                                                                    <?= $col ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" 
+                                                                   name="columns[custom][][visible]" 
+                                                                   <?= $config['visible'] ? 'checked' : '' ?>>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm delete-column">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                <?php endif; endforeach; ?>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -767,6 +776,57 @@ require_once 'includes/header.php';
 <?php require_once 'includes/footer.php'; ?> 
 
 <script src="js/settings.js" defer></script>
+
+<script>
+document.getElementById('addColumnBtn').addEventListener('click', function() {
+    const container = document.getElementById('customColumnsContainer');
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td>
+            <input type="text" class="form-control" name="columns[custom][][name]" required>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="columns[custom][][display_name]" required>
+        </td>
+        <td>
+            <select class="form-select" name="columns[custom][][type]">
+                <option value="text">Text</option>
+                <option value="date">Datum</option>
+                <option value="decimal">Dezimal</option>
+                <option value="integer">Ganzzahl</option>
+            </select>
+        </td>
+        <td>
+            <select class="form-select" name="columns[custom][][excel_column]">
+                <option value="">-</option>
+                ${Array.from(Array(26)).map((_, i) => 
+                    `<option value="${String.fromCharCode(65 + i)}">${String.fromCharCode(65 + i)}</option>`
+                ).join('')}
+            </select>
+        </td>
+        <td>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" name="columns[custom][][visible]" checked>
+            </div>
+        </td>
+        <td>
+            <button type="button" class="btn btn-outline-danger btn-sm delete-column">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    container.appendChild(newRow);
+});
+
+// Event-Delegation für Delete-Buttons
+document.getElementById('customColumnsContainer').addEventListener('click', function(e) {
+    if (e.target.closest('.delete-column')) {
+        if (confirm('Möchten Sie diese Spalte wirklich löschen?')) {
+            e.target.closest('tr').remove();
+        }
+    }
+});
+</script>
 
 </body>
 </html> 
