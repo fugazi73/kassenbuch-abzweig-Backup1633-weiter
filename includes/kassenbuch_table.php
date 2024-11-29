@@ -39,6 +39,13 @@ $entries = array_reverse($entries);
                 <th class="text-end">Ausgabe</th>
                 <th class="text-end">Saldo</th>
                 <th class="text-end">Kassenstand</th>
+                <?php
+                // Hole benutzerdefinierte Spalten
+                $custom_columns = json_decode($settings['custom_columns'] ?? '[]', true);
+                foreach ($custom_columns as $column) {
+                    echo '<th class="text-end">' . htmlspecialchars($column['name']) . '</th>';
+                }
+                ?>
                 <th class="text-end">Aktionen</th>
             </tr>
         </thead>
@@ -54,6 +61,29 @@ $entries = array_reverse($entries);
                 <td class="text-end"><?= number_format($entry['ausgabe'], 2, ',', '.') ?> €</td>
                 <td class="text-end"><?= number_format($saldo, 2, ',', '.') ?> €</td>
                 <td class="text-end"><?= number_format($entry['kassenstand'], 2, ',', '.') ?> €</td>
+                <?php
+                // Zeige benutzerdefinierte Spalten
+                foreach ($custom_columns as $column) {
+                    $column_name = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $column['name']));
+                    $value = $entry[$column_name] ?? '';
+                    
+                    echo '<td class="text-end">';
+                    switch($column['type']) {
+                        case 'date':
+                            echo $value ? date('d.m.Y', strtotime($value)) : '';
+                            break;
+                        case 'decimal':
+                            echo $value ? number_format($value, 2, ',', '.') . ' €' : '';
+                            break;
+                        case 'integer':
+                            echo $value ? number_format($value, 0, ',', '.') : '';
+                            break;
+                        default:
+                            echo htmlspecialchars($value);
+                    }
+                    echo '</td>';
+                }
+                ?>
                 <td class="text-end">
                     <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
                         <button type="button" class="btn btn-sm btn-outline-primary" 

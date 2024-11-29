@@ -34,6 +34,168 @@ $logo_dark = $settings['logo_dark'] ?? 'images/logo_dark.png';
 // Setze den Seitentitel - nur wenn ein Seitenname existiert
 $page_title = $site_name ? "Einstellungen - " . htmlspecialchars($site_name) : "Einstellungen";
 
+// Am Anfang der Datei nach dem Laden der Settings
+$custom_columns = [];
+
+// Hole alle Spalten aus der kassenbuch_eintraege Tabelle
+$columns_query = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
+$default_columns = ['id', 'datum', 'beleg_nr', 'beleg', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id', 'created_at'];
+
+while ($column = $columns_query->fetch_assoc()) {
+    // Wenn es keine Standard-Spalte ist, füge sie zu custom_columns hinzu
+    if (!in_array($column['Field'], $default_columns)) {
+        $type = match($column['Type']) {
+            'varchar(255)' => 'text',
+            'date' => 'date',
+            'decimal(10,2)' => 'decimal',
+            'int' => 'integer',
+            default => 'text'
+        };
+        
+        $custom_columns[] = [
+            'name' => $column['Field'],
+            'type' => $type,
+            'excel_column' => '' // Standardmäßig leer, muss manuell gesetzt werden
+        ];
+    }
+}
+
+// Speichere die custom_columns in den Settings
+if (!empty($custom_columns)) {
+    $custom_columns_json = json_encode($custom_columns);
+    updateSetting($conn, 'custom_columns', $custom_columns_json);
+    error_log("Custom columns aktualisiert: " . $custom_columns_json);
+}
+
+// Am Anfang der Datei nach dem Laden der Settings
+$default_columns = [
+    'datum' => ['name' => 'Datum', 'type' => 'date', 'required' => true],
+    'beleg_nr' => ['name' => 'Beleg-Nr.', 'type' => 'text', 'required' => true],
+    'beleg' => ['name' => 'Beleg', 'type' => 'text', 'required' => false],
+    'bemerkung' => ['name' => 'Bemerkung', 'type' => 'text', 'required' => true],
+    'einnahme' => ['name' => 'Einnahme', 'type' => 'decimal', 'required' => true],
+    'ausgabe' => ['name' => 'Ausgabe', 'type' => 'decimal', 'required' => true]
+];
+
+// Lade gespeicherte Spaltenkonfiguration oder verwende Standardwerte
+$columns_config = json_decode($settings['columns_config'] ?? '[]', true) ?: [];
+
+// Hole alle Spalten aus der kassenbuch_eintraege Tabelle
+$columns_query = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
+$system_columns = ['id', 'saldo', 'kassenstand', 'user_id', 'created_at'];
+$existing_custom_columns = [];
+
+while ($column = $columns_query->fetch_assoc()) {
+    // Wenn es keine Standard- oder System-Spalte ist
+    if (!isset($default_columns[$column['Field']]) && !in_array($column['Field'], $system_columns)) {
+        $type = match($column['Type']) {
+            'varchar(255)' => 'text',
+            'date' => 'date',
+            'decimal(10,2)' => 'decimal',
+            'int' => 'integer',
+            default => 'text'
+        };
+        
+        // Füge zur columns_config hinzu, wenn noch nicht vorhanden
+        if (!isset($columns_config[$column['Field']])) {
+            $columns_config[$column['Field']] = [
+                'display_name' => ucfirst(str_replace('_', ' ', $column['Field'])),
+                'type' => $type,
+                'required' => false,
+                'visible' => true,
+                'excel_column' => ''
+            ];
+        }
+        
+        $existing_custom_columns[] = $column['Field'];
+    }
+}
+
+// Initialisiere Standard-Spalten wenn noch nicht vorhanden
+foreach ($default_columns as $key => $config) {
+    if (!isset($columns_config[$key])) {
+        $columns_config[$key] = [
+            'display_name' => $config['name'],
+            'type' => $config['type'],
+            'required' => $config['required'],
+            'visible' => true,
+            'excel_column' => ''
+        ];
+    }
+}
+
+// Speichere aktualisierte Konfiguration
+updateSetting($conn, 'columns_config', json_encode($columns_config));
+
+// Verarbeite Formular-Submission für Spalten-Konfiguration
+if (isset($_POST['save_columns_config'])) {
+    try {
+        $conn->begin_transaction();
+        
+        $new_columns_config = [];
+        
+        // Verarbeite Standard-Spalten
+        if (isset($_POST['columns']['default']) && is_array($_POST['columns']['default'])) {
+            foreach ($_POST['columns']['default'] as $key => $column) {
+                if (isset($default_columns[$key])) { // Nur erlaubte Standard-Spalten
+                    $new_columns_config[$key] = [
+                        'display_name' => $column['display_name'],
+                        'type' => $default_columns[$key]['type'], // Typ kann nicht geändert werden
+                        'required' => $default_columns[$key]['required'], // Required-Status bleibt fix
+                        'visible' => isset($column['visible']) && $column['visible'] === 'true',
+                        'excel_column' => $column['excel_column'] ?? ''
+                    ];
+                }
+            }
+        }
+        
+        // Verarbeite benutzerdefinierte Spalten
+        if (isset($_POST['columns']['custom']) && is_array($_POST['columns']['custom'])) {
+            foreach ($_POST['columns']['custom'] as $column) {
+                if (isset($column['name'], $column['type'], $column['excel_column']) &&
+                    !empty($column['name'])) {
+                    
+                    $column_name = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $column['name']));
+                    
+                    // SQL-Typ bestimmen
+                    $sql_type = match($column['type']) {
+                        'text' => 'VARCHAR(255)',
+                        'date' => 'DATE',
+                        'decimal' => 'DECIMAL(10,2)',
+                        'integer' => 'INT',
+                        default => 'VARCHAR(255)'
+                    };
+                    
+                    // Spalte zur DB hinzufügen/aktualisieren wenn nötig
+                    $result = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege LIKE '$column_name'");
+                    if ($result->num_rows === 0) {
+                        $sql = "ALTER TABLE kassenbuch_eintraege ADD COLUMN $column_name $sql_type";
+                        $conn->query($sql);
+                    }
+                    
+                    $new_columns_config[$column_name] = [
+                        'display_name' => $column['display_name'] ?? $column['name'],
+                        'type' => $column['type'],
+                        'required' => false,
+                        'visible' => isset($column['visible']) && $column['visible'] === 'true',
+                        'excel_column' => $column['excel_column']
+                    ];
+                }
+            }
+        }
+        
+        // Speichere aktualisierte Konfiguration
+        updateSetting($conn, 'columns_config', json_encode($new_columns_config));
+        
+        $conn->commit();
+        $success_message = 'Spaltenkonfiguration wurde erfolgreich gespeichert.';
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        $error_message = 'Fehler beim Speichern der Konfiguration: ' . $e->getMessage();
+    }
+}
+
 // Formular wurde abgeschickt
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -196,80 +358,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Nach der Validierung der POST-Daten für save_column_config
+        // Verarbeite die benutzerdefinierten Spalten
         if (isset($_POST['save_column_config'])) {
             try {
                 $conn->begin_transaction();
-
-                // 1. Speichere die Basis-Spalten-Konfiguration
-                foreach ($_POST['columns']['required'] as $key => $config) {
-                    $mapping_key = 'excel_mapping_' . $key;
-                    updateSetting($conn, $mapping_key, $config['excel_column']);
-                }
-
-                // 2. Verarbeite die benutzerdefinierten Spalten
-                if (isset($_POST['columns']['custom'])) {
-                    $custom_columns = $_POST['columns']['custom'];
+                
+                $custom_columns = [];
+                
+                if (isset($_POST['columns']['custom']) && is_array($_POST['columns']['custom'])) {
+                    foreach ($_POST['columns']['custom'] as $column) {
+                        if (isset($column['name'], $column['type'], $column['excel_column']) &&
+                            !empty($column['name']) && !empty($column['type']) && !empty($column['excel_column'])) {
+                            
+                            // Spaltenname für DB normalisieren
+                            $column_name = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $column['name']));
+                            
+                            // SQL-Typ bestimmen
+                            $sql_type = match($column['type']) {
+                                'text' => 'VARCHAR(255)',
+                                'date' => 'DATE',
+                                'decimal' => 'DECIMAL(10,2)',
+                                'integer' => 'INT',
+                                default => 'VARCHAR(255)'
+                            };
+                            
+                            // Spalte zur DB hinzufügen wenn sie nicht existiert
+                            $result = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege LIKE '$column_name'");
+                            if ($result->num_rows === 0) {
+                                $sql = "ALTER TABLE kassenbuch_eintraege ADD COLUMN $column_name $sql_type";
+                                $conn->query($sql);
+                            }
+                            
+                            // Zum custom_columns Array hinzufügen
+                            $custom_columns[] = [
+                                'name' => $column_name,
+                                'type' => $column['type'],
+                                'excel_column' => $column['excel_column']
+                            ];
+                        }
+                    }
                     
-                    // Speichere die Spaltenkonfiguration in den Settings
+                    // Speichere aktualisierte custom_columns
                     updateSetting($conn, 'custom_columns', json_encode($custom_columns));
-
-                    // Hole existierende Spalten aus der Datenbank
-                    $existing_columns = [];
-                    $columns_result = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
-                    while ($column = $columns_result->fetch_assoc()) {
-                        $existing_columns[] = $column['Field'];
-                    }
-
-                    // Füge neue Spalten hinzu oder aktualisiere bestehende
-                    foreach ($custom_columns as $column) {
-                        $column_name = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $column['name']));
-                        
-                        // Bestimme den SQL-Datentyp basierend auf dem gewählten Typ
-                        $sql_type = match($column['type']) {
-                            'text' => 'VARCHAR(255)',
-                            'date' => 'DATE',
-                            'decimal' => 'DECIMAL(10,2)',
-                            'integer' => 'INT',
-                            default => 'VARCHAR(255)'
-                        };
-
-                        // Prüfe ob die Spalte bereits existiert
-                        if (!in_array($column_name, $existing_columns)) {
-                            // Neue Spalte hinzufügen
-                            $sql = "ALTER TABLE kassenbuch_eintraege ADD COLUMN $column_name $sql_type";
-                            if (!$conn->query($sql)) {
-                                throw new Exception("Fehler beim Hinzufügen der Spalte $column_name: " . $conn->error);
-                            }
-                        } else {
-                            // Existierende Spalte aktualisieren
-                            $sql = "ALTER TABLE kassenbuch_eintraege MODIFY COLUMN $column_name $sql_type";
-                            if (!$conn->query($sql)) {
-                                throw new Exception("Fehler beim Aktualisieren der Spalte $column_name: " . $conn->error);
-                            }
-                        }
-                    }
-
-                    // Entferne nicht mehr benötigte Spalten
-                    $custom_column_names = array_map(function($col) {
-                        return strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $col['name']));
-                    }, $custom_columns);
-
-                    // Finde und entferne verwaiste benutzerdefinierte Spalten
-                    $preserved_columns = ['id', 'datum', 'beleg_nr', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id'];
-                    foreach ($existing_columns as $existing_column) {
-                        if (!in_array($existing_column, $preserved_columns) && 
-                            !in_array($existing_column, $custom_column_names)) {
-                            $sql = "ALTER TABLE kassenbuch_eintraege DROP COLUMN $existing_column";
-                            if (!$conn->query($sql)) {
-                                throw new Exception("Fehler beim Entfernen der Spalte $existing_column: " . $conn->error);
-                            }
-                        }
-                    }
                 }
-
+                
                 $conn->commit();
-                $success_message = 'Excel-Import-Konfiguration und Datenbankstruktur wurden erfolgreich aktualisiert.';
+                $success_message = 'Spaltenkonfiguration wurde erfolgreich gespeichert.';
+                
             } catch (Exception $e) {
                 $conn->rollback();
                 $error_message = 'Fehler beim Speichern der Konfiguration: ' . $e->getMessage();
@@ -339,7 +474,7 @@ function updateSetting($conn, $key, $value) {
 require_once 'includes/header.php';
 ?>
 
-<div class="container mt-4 mb-5">
+<div class="container mt-4">
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -355,216 +490,270 @@ require_once 'includes/header.php';
                     </ul>
                 </div>
             </div>
-            
-            <?php if ($success_message): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <?= htmlspecialchars($success_message) ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-            
-            <?php if ($error_message): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <?= htmlspecialchars($error_message) ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-            
+
+            <!-- Tabs für verschiedene Einstellungsbereiche -->
             <div class="card">
-                <div class="card-body">
-                    <!-- Kassenstart-Formular -->
-                    <form method="POST" class="mb-4">
-                        <h5>Kassenstart</h5>
-                        <?php
-                        // Aktuellen Startbetrag anzeigen
-                        $startbetrag_query = $conn->query("
-                            SELECT datum, einnahme as betrag 
-                            FROM kassenbuch_eintraege 
-                            WHERE bemerkung = 'Kassenstart' 
-                            ORDER BY datum DESC, id DESC 
-                            LIMIT 1
-                        ");
-                        $startbetrag_info = $startbetrag_query->fetch_assoc();
-                        if ($startbetrag_info): ?>
-                            <div class="alert alert-info">
-                                Aktueller Startbetrag: <?= number_format($startbetrag_info['betrag'], 2, ',', '.') ?> € 
-                                (Datum: <?= date('d.m.Y', strtotime($startbetrag_info['datum'])) ?>)
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="row g-3 align-items-center">
-                            <div class="col-auto">
-                                <label for="startdatum" class="form-label">Datum</label>
-                                <input type="date" class="form-control" id="startdatum" name="startdatum" required>
-                            </div>
-                            <div class="col-auto">
-                                <label for="startbetrag" class="form-label">Betrag (€)</label>
-                                <input type="number" step="0.01" class="form-control" id="startbetrag" name="startbetrag" required>
-                            </div>
-                            <div class="col-auto">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary d-block">Kassenstart speichern</button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Allgemeine Einstellungen Formular -->
-                    <form method="POST" enctype="multipart/form-data">
-                        <!-- Logo Upload Hell -->
-                        <div class="mb-4">
-                            <h5>Logo für helles Design</h5>
-                            <div class="mb-2">
-                                <?php if (!empty($settings['logo_light'])): ?>
-                                    <img src="<?= htmlspecialchars($logo_light) ?>" 
-                                         alt="<?= htmlspecialchars($site_name) ?> Logo (Hell)" 
-                                         class="img-thumbnail"
-                                         style="max-height: 100px; max-width: 300px;">
-                                <?php else: ?>
-                                    <p class="text-muted">Kein Logo vorhanden</p>
-                                <?php endif; ?>
-                            </div>
-                            <label for="logo_light" class="form-label">Neues Logo (Hell) hochladen</label>
-                            <input type="file" class="form-control" id="logo_light" name="logo_light" accept="image/*">
-                        </div>
-
-                        <!-- Logo Upload Dunkel -->
-                        <div class="mb-4">
-                            <h5>Logo für dunkles Design</h5>
-                            <div class="mb-2">
-                                <?php if (!empty($settings['logo_dark'])): ?>
-                                    <img src="<?= htmlspecialchars($logo_dark) ?>" 
-                                         alt="<?= htmlspecialchars($site_name) ?> Logo (Dunkel)" 
-                                         class="img-thumbnail bg-dark"
-                                         style="max-height: 100px; max-width: 300px;">
-                                <?php else: ?>
-                                    <p class="text-muted">Kein Logo vorhanden</p>
-                                <?php endif; ?>
-                            </div>
-                            <label for="logo_dark" class="form-label">Neues Logo (Dunkel) hochladen</label>
-                            <input type="file" class="form-control" id="logo_dark" name="logo_dark" accept="image/*">
-                        </div>
-                        
-                        <div class="form-text mb-4">Erlaubte Formate: JPEG, PNG, GIF. Maximale Größe: 5MB</div>
-                        
-                        <!-- Seitenname -->
-                        <div class="mb-4">
-                            <label for="site_name" class="form-label">Seitenname</label>
-                            <input type="text" class="form-control" id="site_name" name="site_name" 
-                                   value="<?= htmlspecialchars($site_name) ?>" required>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
-                    </form>
-
-                    <!-- Kassensturz-Formular -->
-                    <form id="kassensturzForm" class="mt-4">
-                        <h5>Kassensturz</h5>
-                        <div class="row g-3">
-                            <div class="col-auto">
-                                <label for="kassensturz_datum" class="form-label">Datum</label>
-                                <input type="date" class="form-control" id="kassensturz_datum" required>
-                            </div>
-                            <div class="col-auto">
-                                <label for="kassensturz_betrag" class="form-label">Ist-Betrag (€)</label>
-                                <input type="text" class="form-control" id="kassensturz_betrag" required>
-                            </div>
-                            <div class="col-auto">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary d-block">Kassensturz durchführen</button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Dynamische Spalten-Konfiguration -->
-                    <div class="card mb-4">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Excel Import Konfiguration</h5>
-                            <button type="button" class="btn btn-sm btn-primary" id="addColumnBtn">
-                                <i class="bi bi-plus-circle"></i> Neue Spalte
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" id="columnConfigForm">
-                                <!-- Basis-Spalten (können nicht gelöscht werden) -->
-                                <div class="row g-3 mb-4">
-                                    <div class="col-12">
-                                        <h6>Pflichtfelder</h6>
-                                    </div>
-                                    <?php
-                                    $required_columns = [
-                                        'datum' => ['name' => 'Datum', 'type' => 'date'],
-                                        'beleg' => ['name' => 'Beleg-Nr.', 'type' => 'text'],
-                                        'bemerkung' => ['name' => 'Bemerkung', 'type' => 'text'],
-                                        'einnahme' => ['name' => 'Einnahme', 'type' => 'decimal'],
-                                        'ausgabe' => ['name' => 'Ausgabe', 'type' => 'decimal']
-                                    ];
-                                    
-                                    foreach ($required_columns as $key => $config): ?>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label"><?= $config['name'] ?></label>
-                                            <select name="columns[required][<?= $key ?>][excel_column]" class="form-select" required>
-                                                <option value="">Spalte auswählen</option>
-                                                <?php foreach (range('A', 'Z') as $column): ?>
-                                                    <option value="<?= $column ?>" 
-                                                        <?= ($settings['excel_mapping_' . $key] ?? '') === $column ? 'selected' : '' ?>>
-                                                        Spalte <?= $column ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-
-                                <!-- Dynamische Spalten -->
-                                <div class="row g-3 mb-4">
-                                    <div class="col-12">
-                                        <h6>Zusätzliche Spalten</h6>
-                                    </div>
-                                    <div id="dynamicColumns">
-                                        <?php
-                                        // Lade gespeicherte zusätzliche Spalten
-                                        $custom_columns = json_decode($settings['custom_columns'] ?? '[]', true);
-                                        foreach ($custom_columns as $column): ?>
-                                            <div class="row g-3 mb-3 custom-column">
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Spaltenname</label>
-                                                    <input type="text" class="form-control" name="columns[custom][][name]" 
-                                                           value="<?= htmlspecialchars($column['name']) ?>" required>
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#basics" role="tab">
+                                <i class="bi bi-gear-fill"></i> Basis
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#columns" role="tab">
+                                <i class="bi bi-table"></i> Spalten
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#cash" role="tab">
+                                <i class="bi bi-cash"></i> Kasse
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="tab-content">
+                        <!-- Basis-Einstellungen Tab -->
+                        <div class="tab-pane fade show active p-3" id="basics" role="tabpanel">
+                            <div class="row g-3">
+                                <!-- Logo-Upload Bereich -->
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><i class="bi bi-image"></i> Logos</h6>
+                                            <div class="row g-3">
+                                                <div class="col-6">
+                                                    <label class="d-block mb-2">Hell</label>
+                                                    <div class="logo-preview mb-2">
+                                                        <?php if (!empty($settings['logo_light'])): ?>
+                                                            <img src="<?= htmlspecialchars($logo_light) ?>" class="img-fluid">
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <input type="file" class="form-control form-control-sm" name="logo_light">
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Typ</label>
-                                                    <select class="form-select" name="columns[custom][][type]" required>
-                                                        <option value="text" <?= $column['type'] === 'text' ? 'selected' : '' ?>>Text</option>
-                                                        <option value="date" <?= $column['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
-                                                        <option value="decimal" <?= $column['type'] === 'decimal' ? 'selected' : '' ?>>Dezimalzahl</option>
-                                                        <option value="integer" <?= $column['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Excel-Spalte</label>
-                                                    <select class="form-select" name="columns[custom][][excel_column]" required>
-                                                        <option value="">Spalte auswählen</option>
-                                                        <?php foreach (range('A', 'Z') as $excel_column): ?>
-                                                            <option value="<?= $excel_column ?>" 
-                                                                <?= $column['excel_column'] === $excel_column ? 'selected' : '' ?>>
-                                                                Spalte <?= $excel_column ?>
-                                                            </option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label">&nbsp;</label>
-                                                    <button type="button" class="btn btn-danger d-block w-100 remove-column">
-                                                        <i class="bi bi-trash"></i> Entfernen
-                                                    </button>
+                                                <div class="col-6">
+                                                    <label class="d-block mb-2">Dunkel</label>
+                                                    <div class="logo-preview mb-2 bg-dark">
+                                                        <?php if (!empty($settings['logo_dark'])): ?>
+                                                            <img src="<?= htmlspecialchars($logo_dark) ?>" class="img-fluid">
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <input type="file" class="form-control form-control-sm" name="logo_dark">
                                                 </div>
                                             </div>
-                                        <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Seitenname & Weitere Basis-Einstellungen -->
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><i class="bi bi-pencil"></i> Allgemein</h6>
+                                            <div class="mb-3">
+                                                <label class="form-label">Seitenname</label>
+                                                <input type="text" class="form-control" name="site_name" 
+                                                       value="<?= htmlspecialchars($site_name) ?>">
+                                            </div>
+                                            <!-- Weitere allgemeine Einstellungen hier -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Spalten-Konfiguration Tab -->
+                        <div class="tab-pane fade p-3" id="columns" role="tabpanel">
+                            <div class="accordion" id="columnsAccordion">
+                                <!-- Standard-Spalten Accordion -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#standardColumns">
+                                            Standard-Spalten
+                                        </button>
+                                    </h2>
+                                    <div id="standardColumns" class="accordion-collapse collapse show">
+                                        <div class="accordion-body p-2">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Spalte</th>
+                                                            <th>Anzeigename</th>
+                                                            <th>Excel</th>
+                                                            <th>Sichtbar</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($columns_config as $key => $config): 
+                                                            if (isset($default_columns[$key])): ?>
+                                                        <tr>
+                                                            <td><?= htmlspecialchars($key) ?></td>
+                                                            <td>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       name="columns[default][<?= $key ?>][display_name]"
+                                                                       value="<?= htmlspecialchars($config['display_name']) ?>">
+                                                            </td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm" 
+                                                                        name="columns[default][<?= $key ?>][excel_column]">
+                                                                    <option value="">-</option>
+                                                                    <?php foreach (range('A', 'Z') as $col): ?>
+                                                                        <option value="<?= $col ?>" 
+                                                                            <?= ($config['excel_column'] === $col) ? 'selected' : '' ?>>
+                                                                            <?= $col ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <div class="form-check">
+                                                                    <input type="checkbox" class="form-check-input"
+                                                                           name="columns[default][<?= $key ?>][visible]"
+                                                                           <?= $config['visible'] ? 'checked' : '' ?>
+                                                                           <?= $config['required'] ? 'disabled' : '' ?>>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <?php endif; endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <button type="submit" name="save_column_config" class="btn btn-primary">Konfiguration speichern</button>
-                            </form>
+                                <!-- Benutzerdefinierte Spalten Accordion -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#customColumns">
+                                            Benutzerdefinierte Spalten
+                                        </button>
+                                    </h2>
+                                    <div id="customColumns" class="accordion-collapse collapse">
+                                        <div class="accordion-body p-2">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle" id="customColumnsTable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Anzeigename</th>
+                                                            <th>Typ</th>
+                                                            <th>Excel</th>
+                                                            <th>Sichtbar</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($columns_config as $key => $config): 
+                                                            if (!isset($default_columns[$key]) && !in_array($key, $system_columns)): ?>
+                                                        <tr>
+                                                            <td>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       name="columns[custom][][name]"
+                                                                       value="<?= htmlspecialchars($key) ?>">
+                                                            </td>
+                                                            <td>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       name="columns[custom][][display_name]"
+                                                                       value="<?= htmlspecialchars($config['display_name']) ?>">
+                                                            </td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm" name="columns[custom][][type]">
+                                                                    <option value="text" <?= $config['type'] === 'text' ? 'selected' : '' ?>>Text</option>
+                                                                    <option value="date" <?= $config['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
+                                                                    <option value="decimal" <?= $config['type'] === 'decimal' ? 'selected' : '' ?>>Dezimal</option>
+                                                                    <option value="integer" <?= $config['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm" name="columns[custom][][excel_column]">
+                                                                    <option value="">-</option>
+                                                                    <?php foreach (range('A', 'Z') as $col): ?>
+                                                                        <option value="<?= $col ?>" 
+                                                                            <?= ($config['excel_column'] === $col) ? 'selected' : '' ?>>
+                                                                            <?= $col ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <div class="form-check">
+                                                                    <input type="checkbox" class="form-check-input"
+                                                                           name="columns[custom][][visible]"
+                                                                           <?= $config['visible'] ? 'checked' : '' ?>>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger delete-column">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        <?php endif; endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-secondary" id="addColumnBtn">
+                                                <i class="bi bi-plus-circle"></i> Neue Spalte
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kassen-Einstellungen Tab -->
+                        <div class="tab-pane fade p-3" id="cash" role="tabpanel">
+                            <div class="row g-3">
+                                <!-- Kassenstart -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><i class="bi bi-cash-stack"></i> Kassenstart</h6>
+                                            <?php if ($startbetrag_info): ?>
+                                                <div class="alert alert-info py-2">
+                                                    Aktuell: <?= number_format($startbetrag_info['betrag'], 2, ',', '.') ?> € 
+                                                    (<?= date('d.m.Y', strtotime($startbetrag_info['datum'])) ?>)
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Datum</label>
+                                                    <input type="date" class="form-control form-control-sm" id="startdatum" name="startdatum">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Betrag (€)</label>
+                                                    <input type="number" step="0.01" class="form-control form-control-sm" id="startbetrag" name="startbetrag">
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm mt-2">Speichern</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Kassensturz -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><i class="bi bi-calculator"></i> Kassensturz</h6>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Datum</label>
+                                                    <input type="date" class="form-control form-control-sm" id="kassensturz_datum">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Ist-Betrag (€)</label>
+                                                    <input type="number" step="0.01" class="form-control form-control-sm" id="kassensturz_betrag">
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm mt-2">Durchführen</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -576,6 +765,8 @@ require_once 'includes/header.php';
 <div class="mb-5"></div>
 
 <?php require_once 'includes/footer.php'; ?> 
+
+<script src="js/settings.js" defer></script>
 
 </body>
 </html> 
