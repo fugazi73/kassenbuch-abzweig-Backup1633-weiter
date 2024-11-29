@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 // Hole die Einstellungen aus der Datenbank
 $showLinks = false;
@@ -19,56 +18,37 @@ try {
 }
 ?>
 
-<footer class="main-footer">
+<footer class="main-footer mt-auto">
     <div class="container">
-        <div class="row align-items-center py-3">
-            <div class="col-md-4">
-                <div class="footer-brand">
-                    <img src="images/ME.png" alt="ME Logo" class="footer-logo">
-                    <span>ME</span>
+        <div class="row align-items-center py-2">
+            <div class="col-md-6">
+                <div class="footer-brand d-flex align-items-center">
+                    <img src="<?= $logo_light ?>" alt="Logo Light" class="footer-logo me-2 theme-light">
+                    <img src="<?= $logo_dark ?>" alt="Logo Dark" class="footer-logo me-2 theme-dark">
+                    <span class="text-muted"><?= htmlspecialchars($site_name) ?></span>
                 </div>
             </div>
-            <div class="col-md-4 text-center">
-                <p class="mb-0">&copy; <?= date('Y') ?> ME. Alle Rechte vorbehalten.</p>
-            </div>
-            <div class="col-md-4 text-end">
-                <div class="footer-info">
-                    <p class="mb-0">Version 1.0</p>
-                    <a href="mailto:support@me.de" class="footer-link">
-                        <i class="bi bi-envelope"></i> Support
-                    </a>
+            <div class="col-md-6 text-end">
+                <div class="footer-info d-flex align-items-center justify-content-end">
+                    <span class="text-muted me-3">Version 1.0</span>
+                    <div class="footer-icons">
+                        <a href="#" class="text-muted me-2" title="GitHub">
+                            <i class="bi bi-github"></i>
+                        </a>
+                        <a href="#" class="text-muted me-2" title="Discord">
+                            <i class="bi bi-discord"></i>
+                        </a>
+                        <a href="#" class="text-muted" title="Info">
+                            <i class="bi bi-info-circle"></i>
+                        </a>
+                    </div>
                 </div>
-=======
-<footer class="mt-auto">
-    <div class="container">
-        <div class="row">
-            <div class="col text-center">
-                <p class="mb-0">&copy; <?= date('Y') ?> Kassenbuch</p>
->>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
             </div>
         </div>
     </div>
 </footer>
-<<<<<<< HEAD
 
-<!-- Bootstrap Bundle mit Popper -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Alle JavaScript-Dateien wurden bereits im Header geladen -->
 
-<!-- jQuery (falls benötigt) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Footer Manager -->
-<script src="js/footer.js"></script>
-
-<!-- Custom Scripts -->
-<?php
-$current_page = basename($_SERVER['PHP_SELF'], '.php');
-if (file_exists("js/{$current_page}/index.js")) {
-    echo "<script src='js/{$current_page}/index.js'></script>";
-}
-?>
-
-=======
->>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
 </body>
 </html> 

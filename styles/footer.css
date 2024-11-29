@@ -1,52 +1,29 @@
 .main-footer {
-    background-color: var(--card-bg);
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid rgba(0,0,0,.1);
+    background-color: #f8f9fa;
     padding: 0.5rem 0;
-    margin-top: auto;
-    color: var(--text-color);
-    box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
 }
 
 .footer-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    font-size: 0.9rem;
 }
 
 .footer-logo {
     height: 24px;
+    width: auto;
 }
 
-.footer-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.5rem;
-}
-
-.footer-link {
-    color: var(--text-color);
+.footer-icons a {
     text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    transition: color 0.2s ease;
 }
 
-.footer-link:hover {
-    color: var(--nav-hover);
+.footer-icons a:hover {
+    color: var(--bs-primary) !important;
 }
 
-@media (max-width: 767.98px) {
-    .main-footer .row > div {
-        text-align: center !important;
-        margin-bottom: 1rem;
-    }
-
-    .footer-info {
-        align-items: center;
-    }
-
-    .footer-brand {
-        justify-content: center;
-    }
+/* Für den Dark Mode später */
+[data-bs-theme="dark"] .main-footer {
+    border-top: 1px solid rgba(255,255,255,.1);
+    background-color: #212529;
 } 

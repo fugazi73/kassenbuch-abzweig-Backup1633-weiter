@@ -26,6 +26,14 @@ $startbetrag_info = $startbetrag_query->fetch_assoc();
 $startbetrag = $startbetrag_info['betrag'] ?? 0;
 $startbetrag_datum = $startbetrag_info['datum'] ?? date('Y-m-d');
 
+// Am Anfang der Datei nach dem Laden der Settings
+$site_name = $settings['site_name'] ?? '';
+$logo_light = $settings['logo_light'] ?? 'images/logo_light.png';
+$logo_dark = $settings['logo_dark'] ?? 'images/logo_dark.png';
+
+// Setze den Seitentitel - nur wenn ein Seitenname existiert
+$page_title = $site_name ? "Einstellungen - " . htmlspecialchars($site_name) : "Einstellungen";
+
 // Formular wurde abgeschickt
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -117,7 +125,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Seitenname aktualisieren
         if (isset($_POST['site_name'])) {
-            updateSetting($conn, 'site_name', $_POST['site_name']);
+            $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) 
+                                   VALUES ('site_name', ?) 
+                                   ON DUPLICATE KEY UPDATE setting_value = ?");
+            $stmt->bind_param("ss", $_POST['site_name'], $_POST['site_name']);
+            
+            if (!$stmt->execute()) {
+                throw new Exception("Fehler beim Speichern des Seitennamens: " . $stmt->error);
+            }
+            
+            // Aktualisiere die lokale Variable
+            $site_name = $_POST['site_name'];
+            $success_message = 'Einstellungen wurden erfolgreich gespeichert.';
+            
+            // Lade die Settings neu
+            $result = $conn->query("SELECT setting_key, setting_value FROM settings");
+            if ($result) {
+                $settings = [];
+                while ($row = $result->fetch_assoc()) {
+                    $settings[$row['setting_key']] = $row['setting_value'];
+                }
+            }
         }
         
         // Kassenstart aktualisieren
@@ -280,6 +308,7 @@ function handleLogoUpload($file, $prefix) {
         throw new Exception('Keine Schreibrechte im Upload-Verzeichnis.');
     }
     
+    // Hier wird der Dateiname standardisiert
     $fileName = $prefix . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
     $uploadPath = $uploadDir . $fileName;
     
@@ -307,7 +336,6 @@ function updateSetting($conn, $key, $value) {
     $stmt->execute();
 }
 
-$page_title = "Einstellungen";
 require_once 'includes/header.php';
 ?>
 
@@ -386,9 +414,9 @@ require_once 'includes/header.php';
                         <div class="mb-4">
                             <h5>Logo für helles Design</h5>
                             <div class="mb-2">
-                                <?php if (!empty($settings['logo_light']) && file_exists($settings['logo_light'])): ?>
-                                    <img src="<?= htmlspecialchars($settings['logo_light']) ?>" 
-                                         alt="Logo (Hell)" 
+                                <?php if (!empty($settings['logo_light'])): ?>
+                                    <img src="<?= htmlspecialchars($logo_light) ?>" 
+                                         alt="<?= htmlspecialchars($site_name) ?> Logo (Hell)" 
                                          class="img-thumbnail"
                                          style="max-height: 100px; max-width: 300px;">
                                 <?php else: ?>
@@ -403,9 +431,9 @@ require_once 'includes/header.php';
                         <div class="mb-4">
                             <h5>Logo für dunkles Design</h5>
                             <div class="mb-2">
-                                <?php if (!empty($settings['logo_dark']) && file_exists($settings['logo_dark'])): ?>
-                                    <img src="<?= htmlspecialchars($settings['logo_dark']) ?>" 
-                                         alt="Logo (Dunkel)" 
+                                <?php if (!empty($settings['logo_dark'])): ?>
+                                    <img src="<?= htmlspecialchars($logo_dark) ?>" 
+                                         alt="<?= htmlspecialchars($site_name) ?> Logo (Dunkel)" 
                                          class="img-thumbnail bg-dark"
                                          style="max-height: 100px; max-width: 300px;">
                                 <?php else: ?>
@@ -422,7 +450,7 @@ require_once 'includes/header.php';
                         <div class="mb-4">
                             <label for="site_name" class="form-label">Seitenname</label>
                             <input type="text" class="form-control" id="site_name" name="site_name" 
-                                   value="<?= htmlspecialchars($settings['site_name'] ?? COMPANY_NAME) ?>">
+                                   value="<?= htmlspecialchars($site_name) ?>" required>
                         </div>
                         
                         <button type="submit" class="btn btn-primary">Einstellungen speichern</button>

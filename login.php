@@ -48,26 +48,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <div class="row justify-content-center mt-5">
             <div class="col-md-6 col-lg-4">
-                <div class="card shadow">
-                    <div class="card-body">
-                        <h3 class="card-title text-center mb-4">Kassenbuch</h3>
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <img src="<?= $logo_light ?>" alt="Logo" class="mb-3 theme-light" height="48">
+                            <img src="<?= $logo_dark ?>" alt="Logo" class="mb-3 theme-dark" height="48">
+                            <h3 class="card-title">Anmelden</h3>
+                        </div>
                         
                         <?php if (isset($error)): ?>
-                            <div class="alert alert-danger">
+                            <div class="alert alert-danger alert-dismissible fade show">
                                 <?= htmlspecialchars($error) ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
                         <?php endif; ?>
 
-                        <form method="post" action="login.php">
+                        <form method="post" class="needs-validation" novalidate>
                             <div class="mb-3">
-                                <label for="username" class="form-label">Benutzername</label>
-                                <input type="text" class="form-control" id="username" name="username" required>
+                                <label class="form-label">Benutzername</label>
+                                <input type="text" class="form-control form-control-lg" name="username" required>
                             </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Passwort</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                            <div class="mb-4">
+                                <label class="form-label">Passwort</label>
+                                <input type="password" class="form-control form-control-lg" name="password" required>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
                                 <i class="bi bi-box-arrow-in-right"></i> Anmelden
                             </button>
                         </form>

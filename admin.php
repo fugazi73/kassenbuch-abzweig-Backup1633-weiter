@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'includes/init.php';
 require_once 'config.php';
 require_once 'functions.php';
 
@@ -15,45 +16,45 @@ require_once 'includes/header.php';
     <div class="row my-4">
         <!-- Übersichtskarten -->
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title text-muted mb-3">
+                    <h6 class="card-subtitle text-muted mb-3">
                         <i class="bi bi-people"></i> Aktive Benutzer
                     </h6>
-                    <h2 class="mb-0" id="active_users">-</h2>
+                    <h2 class="card-title display-6 mb-0" id="active_users">-</h2>
                 </div>
             </div>
         </div>
 
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title text-muted mb-3">
+                    <h6 class="card-subtitle text-muted mb-3">
                         <i class="bi bi-clock-history"></i> Letzte Aktivität
                     </h6>
-                    <p class="mb-0" id="last_activity">-</p>
+                    <p class="mb-0 fs-5" id="last_activity">-</p>
                 </div>
             </div>
         </div>
 
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title text-muted mb-3">
+                    <h6 class="card-subtitle text-muted mb-3">
                         <i class="bi bi-hdd"></i> Letztes Backup
                     </h6>
-                    <p class="mb-0" id="last_backup">-</p>
+                    <p class="mb-0 fs-5" id="last_backup">-</p>
                 </div>
             </div>
         </div>
 
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title text-muted mb-3">
+                    <h6 class="card-subtitle text-muted mb-3">
                         <i class="bi bi-graph-up"></i> System Status
                     </h6>
-                    <p class="mb-0 text-success">
+                    <p class="mb-0 fs-5 text-success">
                         <i class="bi bi-check-circle"></i> System läuft normal
                     </p>
                 </div>
@@ -64,14 +65,14 @@ require_once 'includes/header.php';
     <!-- Schnellzugriff -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
                     <h5 class="mb-0"><i class="bi bi-lightning"></i> Schnellzugriff</h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-4">
                         <div class="col-md-3">
-                            <a href="benutzerverwaltung.php" class="btn btn-outline-primary w-100">
+                            <a href="benutzerverwaltung.php" class="btn btn-outline-primary w-100 btn-lg">
                                 <i class="bi bi-people"></i> Benutzerverwaltung
                             </a>
                         </div>
@@ -93,25 +94,24 @@ require_once 'includes/header.php';
                     </div>
                 </div>
             </div>
-<<<<<<< HEAD
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="bi bi-gear"></i> Seiten-Verwaltung</h5>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0"><i class="bi bi-gear"></i> Seiten-Verwaltung</h5>
         </div>
         <div class="card-body">
             <form id="pagesForm" onsubmit="updatePages(event)">
-                <div class="mb-3">
+                <div class="mb-4">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="showImpressum" name="show_impressum">
                         <label class="form-check-label" for="showImpressum">Impressum anzeigen</label>
                     </div>
                 </div>
-                <div class="mb-3">
+                <div class="mb-4">
                     <label class="form-label">Impressum Inhalt</label>
-                    <textarea class="form-control" id="impressumContent" name="impressum_content" rows="10"></textarea>
+                    <textarea class="form-control form-control-lg" id="impressumContent" name="impressum_content" rows="10"></textarea>
                 </div>
                 <div class="mb-3">
                     <div class="form-check form-switch">
@@ -123,10 +123,10 @@ require_once 'includes/header.php';
                     <label class="form-label">Datenschutz Inhalt</label>
                     <textarea class="form-control" id="datenschutzContent" name="datenschutz_content" rows="10"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
             </form>
-=======
->>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
         </div>
     </div>
 </div>

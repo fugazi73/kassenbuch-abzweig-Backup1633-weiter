@@ -1,6 +1,10 @@
 <?php
+session_start();
+require_once 'includes/init.php';  // Lädt die Settings-Variablen
 require_once 'config.php';
-check_login();
+require_once 'functions.php';
+
+// Prüfe Berechtigungen
 if (!is_admin()) {
     handle_forbidden();
 }
@@ -19,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'delete':
                 if (isset($_POST['file'])) {
-                    $file = 'backups/' . basename($_POST['file']);
+                    $file = __DIR__ . '/backups/' . basename($_POST['file']);
                     if (file_exists($file) && unlink($file)) {
                         echo json_encode(['success' => true]);
                     } else {
@@ -42,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Normale Seitenanzeige
-$page_title = 'Backup & Restore | Kassenbuch';
+$page_title = $site_name ? "Backup & Restore - " . htmlspecialchars($site_name) : "Backup & Restore";
 include 'includes/header.php';
 
 // Funktion zum Erstellen des Datenbank-Backups
@@ -133,8 +137,8 @@ function createFilesBackup($filename) {
 // Hauptfunktion zum Erstellen des Backups
 function createBackup($type = 'full') {
     try {
-        // Backup-Verzeichnis erstellen
-        $backup_dir = 'backups';
+        // Absoluten Pfad zum Backup-Verzeichnis erstellen
+        $backup_dir = __DIR__ . '/backups';
         if (!file_exists($backup_dir)) {
             mkdir($backup_dir, 0755, true);
         }
@@ -210,7 +214,13 @@ function restoreBackup($backup_file) {
     global $conn;
     
     try {
-        $temp_dir = 'temp_restore_' . time();
+        // Absoluten Pfad zum Backup verwenden
+        $backup_file = __DIR__ . '/' . $backup_file;
+        if (!file_exists($backup_file)) {
+            throw new Exception('Backup-Datei nicht gefunden');
+        }
+
+        $temp_dir = __DIR__ . '/temp_restore_' . time();
         mkdir($temp_dir);
 
         // Backup entpacken
@@ -245,11 +255,16 @@ function restoreBackup($backup_file) {
 
 // Funktion zum Auflisten der Backups anpassen
 function getBackups() {
-    $backup_dir = 'backups';
+    // Absoluten Pfad zum Backup-Verzeichnis erstellen
+    $backup_dir = __DIR__ . '/backups';
+    
+    // Prüfe ob Verzeichnis existiert, wenn nicht, erstelle es
     if (!file_exists($backup_dir)) {
+        mkdir($backup_dir, 0755, true);
         return [];
     }
     
+    // Hole alle Backup-Dateien
     $backups = glob($backup_dir . '/backup_*.zip');
     $backup_list = [];
     
@@ -284,7 +299,7 @@ function getBackups() {
 
 // Funktion zum Löschen alter Backups
 function cleanupOldBackups($days_to_keep) {
-    $backup_dir = 'backups';
+    $backup_dir = __DIR__ . '/backups';
     $cutoff = time() - ($days_to_keep * 24 * 60 * 60);
     
     foreach (glob($backup_dir . '/backup_*.zip') as $file) {
@@ -385,6 +400,7 @@ $backups = getBackups();
     </div>
 </div>
 
+<script>
 document.getElementById('createBackup').addEventListener('click', async () => {
     const form = document.getElementById('backupForm');
     const formData = new FormData(form);
@@ -400,16 +416,11 @@ document.getElementById('createBackup').addEventListener('click', async () => {
             body: formData
         });
         
-        // Debug-Ausgaben
-        console.log('Response status:', response.status);
         const responseText = await response.text();
-        console.log('Response text:', responseText);
-        
         let data;
         try {
             data = JSON.parse(responseText);
         } catch (e) {
-            console.error('JSON Parse Error:', e);
             throw new Error('Ungültige Server-Antwort: ' + responseText);
         }
         
