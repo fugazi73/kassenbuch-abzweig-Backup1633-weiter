@@ -6,124 +6,24 @@ if (!isset($_SESSION['user_role'])) {
     exit;
 }
 check_login();
+
+// Startbetrag und laufenden Kassenstand berechnen
+$sql = "SELECT 
+    (SELECT COALESCE(einnahme, 0) 
+     FROM kassenbuch_eintraege 
+     WHERE bemerkung = 'Kassenstart' 
+     ORDER BY datum DESC, id DESC 
+     LIMIT 1) as startbetrag,
+    (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
+     FROM kassenbuch_eintraege) as gesamt_kassenstand";
+
+$result = $conn->query($sql);
+$kasseninfo = $result->fetch_assoc();
+$startbetrag = $kasseninfo['startbetrag'];
+$current_kassenstand = $kasseninfo['gesamt_kassenstand'];
+
 $page_title = 'Übersicht | Kassenbuch';
 require_once 'includes/header.php';
-// Pagination-Variablen hinzufügen
-$items_per_page = 25;
-$current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-$offset = ($current_page - 1) * $items_per_page;
-
-// Bestehende Saldo-Abfrage beibehalten
-$result = $conn->query("SELECT 
-    SUM(einnahme) - SUM(ausgabe) as gesamt_saldo,
-    (SELECT kassenstand FROM kassenbuch_eintraege ORDER BY id DESC LIMIT 1) as aktueller_kassenstand
-FROM kassenbuch_eintraege");
-
-$current = $result->fetch_assoc();
-$current_saldo = $current['gesamt_saldo'] ?? 0.00;
-$current_kassenstand = $current['aktueller_kassenstand'] ?? 0.00;
-
-// Bestehende Query-Logik beibehalten und um Pagination erweitern
-$query = "SELECT * FROM kassenbuch_eintraege WHERE 1=1";
-$params = [];
-$types = "";
-
-if (!empty($_GET['von_datum']) && !empty($_GET['bis_datum'])) {
-    $query .= " AND datum BETWEEN ? AND ?";
-    $types .= "ss";
-    $params[] = $_GET['von_datum'];
-    $params[] = $_GET['bis_datum'];
-}
-
-if (!empty($_GET['typ'])) {
-    if ($_GET['typ'] === 'einnahme') {
-        $query .= " AND einnahme > 0";
-    } elseif ($_GET['typ'] === 'ausgabe') {
-        $query .= " AND ausgabe > 0";
-    }
-}
-
-if (!empty($_GET['bemerkung']) && is_array($_GET['bemerkung'])) {
-    $bemerkungen = array_map(function($b) use ($conn) {
-        return $conn->real_escape_string($b);
-    }, $_GET['bemerkung']);
-    
-    $query .= " AND bemerkung IN ('" . implode("','", $bemerkungen) . "')";
-}
-
-// Gesamtanzahl der Einträge ermitteln
-$count_query = str_replace("SELECT *", "SELECT COUNT(*) as total", $query);
-$count_stmt = $conn->prepare($count_query);
-if (!empty($params)) {
-    $count_stmt->bind_param($types, ...$params);
-}
-$count_stmt->execute();
-$total_records = $count_stmt->get_result()->fetch_assoc()['total'];
-$total_pages = ceil($total_records / $items_per_page);
-
-// Bestehende Bemerkungen aus der Datenbank holen
-$stmt_bemerkungen = $conn->prepare("SELECT DISTINCT bemerkung FROM kassenbuch_eintraege WHERE bemerkung != '' ORDER BY bemerkung");
-$stmt_bemerkungen->execute();
-$result_bemerkungen = $stmt_bemerkungen->get_result();
-$bemerkungen = [];
-while ($row = $result_bemerkungen->fetch_assoc()) {
-    $bemerkungen[] = $row['bemerkung'];
-}
-
-// Hauptquery vorbereiten
-$query = "SELECT * FROM kassenbuch_eintraege WHERE 1=1";
-$params = [];
-$types = "";
-
-// Filter für Datum
-if (!empty($_GET['von_datum']) && !empty($_GET['bis_datum'])) {
-    $query .= " AND datum BETWEEN ? AND ?";
-    $types .= "ss";
-    $params[] = $_GET['von_datum'];
-    $params[] = $_GET['bis_datum'];
-}
-
-// Filter für Typ
-if (!empty($_GET['typ'])) {
-    if ($_GET['typ'] === 'einnahme') {
-        $query .= " AND einnahme > 0";
-    } elseif ($_GET['typ'] === 'ausgabe') {
-        $query .= " AND ausgabe > 0";
-    }
-}
-
-// **Korrigierter Bemerkung-Filter**
-if (!empty($_GET['bemerkung'])) {
-    $bemerkung_filter = $_GET['bemerkung'];
-    $query .= " AND bemerkung = ?";
-    $types .= "s";
-    $params[] = $bemerkung_filter;
-}
-
-// Gesamtanzahl der Einträge ermitteln
-$count_query = str_replace("SELECT *", "SELECT COUNT(*) as total", $query);
-$count_stmt = $conn->prepare($count_query);
-if (!empty($params)) {
-    $count_stmt->bind_param($types, ...$params);
-}
-$count_stmt->execute();
-$total_records = $count_stmt->get_result()->fetch_assoc()['total'];
-$total_pages = ceil($total_records / $items_per_page);
-
-// Hauptquery mit Pagination
-$query .= " ORDER BY datum DESC, id DESC LIMIT ? OFFSET ?";
-$types .= "ii";
-$params[] = $items_per_page;
-$params[] = $offset;
-
-// Query ausführen
-$stmt = $conn->prepare($query);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$result = $stmt->get_result();
-
 ?>
 
 <div class="container mt-4">
@@ -144,13 +44,28 @@ $result = $stmt->get_result();
         </div>
     </div>
 
+<<<<<<< HEAD
     <!-- Datalist für Bemerkungen -->
+=======
+    <!-- Bemerkungen Datalist -->
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
     <datalist id="bemerkungen">
-        <?php foreach ($bemerkungen as $bemerkung): ?>
-            <option value="<?= htmlspecialchars($bemerkung) ?>">
-        <?php endforeach; ?>
+        <?php 
+        $stmt = $conn->prepare("
+            SELECT DISTINCT bemerkung 
+            FROM kassenbuch_eintraege 
+            WHERE bemerkung != 'Kassenstart' 
+            AND bemerkung IS NOT NULL 
+            ORDER BY bemerkung ASC
+        ");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()): ?>
+            <option value="<?= htmlspecialchars($row['bemerkung']) ?>">
+        <?php endwhile; ?>
     </datalist>
 
+<<<<<<< HEAD
     <!-- Eingabezeile über der Tabelle -->
     <div class="card mb-4">
         <div class="card-body">
@@ -172,10 +87,40 @@ $result = $stmt->get_result();
                         <i class="bi bi-plus-circle"></i> Neuer Eintrag
                     </button>
                 </div>
+=======
+    <!-- Schnelleingabe-Formular -->
+    <div class="quick-entry-form mb-4">
+        <form id="quickEntryForm" class="row g-3">
+            <div class="col-md-2">
+                <label for="datum" class="form-label">Datum</label>
+                <input type="date" class="form-control" id="datum" name="datum" 
+                       value="<?= date('Y-m-d') ?>" required>
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
             </div>
-        </div>
+            <div class="col-md-4">
+                <label for="bemerkung" class="form-label">Bemerkung</label>
+                <input type="text" class="form-control" id="bemerkung" 
+                       name="bemerkung" required 
+                       list="bemerkungen" 
+                       autocomplete="off">
+            </div>
+            <div class="col-md-2">
+                <label for="einnahme" class="form-label">Einnahme</label>
+                <input type="number" class="form-control" id="einnahme" name="einnahme" 
+                       step="0.01" min="0">
+            </div>
+            <div class="col-md-2">
+                <label for="ausgabe" class="form-label">Ausgabe</label>
+                <input type="number" class="form-control" id="ausgabe" name="ausgabe" 
+                       step="0.01" min="0">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Speichern</button>
+            </div>
+        </form>
     </div>
 
+<<<<<<< HEAD
     <!-- Tabellen-Bereich -->
     <div class="table-container">
         <div class="table-responsive">
@@ -237,57 +182,43 @@ $result = $stmt->get_result();
                 </tbody>
             </table>
         </div>
+=======
+    <!-- Filter nur für Admin/Chef -->
+    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
+    <div class="filter-container">
+        <form id="filterForm" method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Von Datum</label>
+                <input type="date" name="von_datum" class="form-control" 
+                       value="<?= $_GET['von_datum'] ?? '' ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Bis Datum</label>
+                <input type="date" name="bis_datum" class="form-control" 
+                       value="<?= $_GET['bis_datum'] ?? '' ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Typ</label>
+                <select name="typ" class="form-select">
+                    <option value="">Alle</option>
+                    <option value="einnahme" <?= ($_GET['typ'] ?? '') === 'einnahme' ? 'selected' : '' ?>>Einnahmen</option>
+                    <option value="ausgabe" <?= ($_GET['typ'] ?? '') === 'ausgabe' ? 'selected' : '' ?>>Ausgaben</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a href="kassenbuch.php" class="btn btn-secondary ms-2">Zurücksetzen</a>
+            </div>
+        </form>
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
     </div>
+    <?php endif; ?>
 
-    <!-- Pagination -->
-    <div class="d-flex justify-content-between align-items-center mt-4">
-        <div class="text-muted">
-            Zeige <?= min($total_records, ($offset + 1)) ?>-<?= min($total_records, ($offset + $items_per_page)) ?> 
-            von <?= $total_records ?> Einträgen
-        </div>
-        
-        <?php if ($total_pages > 1): ?>
-        <nav aria-label="Seitennavigation">
-            <ul class="pagination mb-0">
-                <!-- Erste Seite -->
-                <li class="page-item <?= ($current_page == 1) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= get_pagination_url(1) ?>" aria-label="Erste">
-                        <i class="bi bi-chevron-double-left"></i>
-                    </a>
-                </li>
-                
-                <!-- Vorherige Seite -->
-                <li class="page-item <?= ($current_page == 1) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= get_pagination_url(max(1, $current_page - 1)) ?>" aria-label="Vorherige">
-                        <i class="bi bi-chevron-left"></i>
-                    </a>
-                </li>
-                
-                <!-- Seitenzahlen -->
-                <?php for ($i = max(1, $current_page - 2); $i <= min($total_pages, $current_page + 2); $i++): ?>
-                    <li class="page-item <?= ($i == $current_page) ? 'active' : '' ?>">
-                        <a class="page-link" href="<?= get_pagination_url($i) ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
-                
-                <!-- Nächste Seite -->
-                <li class="page-item <?= ($current_page == $total_pages) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= get_pagination_url(min($total_pages, $current_page + 1)) ?>" aria-label="Nächste">
-                        <i class="bi bi-chevron-right"></i>
-                    </a>
-                </li>
-                
-                <!-- Letzte Seite -->
-                <li class="page-item <?= ($current_page == $total_pages) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= get_pagination_url($total_pages) ?>" aria-label="Letzte">
-                        <i class="bi bi-chevron-double-right"></i>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-        <?php endif; ?>
-    </div>
+    <!-- Tabelle wird hier eingefügt -->
+    <?php include 'includes/kassenbuch_table.php'; ?>
+</div>
 
+<<<<<<< HEAD
     <!-- Eintrag Modal -->
     <div class="modal fade" id="entryModal" tabindex="-1">
         <div class="modal-dialog">
@@ -410,9 +341,57 @@ $result = $stmt->get_result();
 
     <!-- Script einbinden -->
     <script src="js/kassenbuch/kassenbuch.js"></script>
+=======
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Eintrag bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editEntryForm">
+                <input type="hidden" name="id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Datum</label>
+                        <input type="date" name="datum" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beleg-Nr.</label>
+                        <input type="text" name="beleg_nr" class="form-control" maxlength="50">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bemerkung</label>
+                        <input type="text" name="bemerkung" 
+                               class="form-control" required 
+                               list="bemerkungen" 
+                               autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Einnahme</label>
+                        <input type="number" name="einnahme" class="form-control" step="0.01" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ausgabe</label>
+                        <input type="number" name="ausgabe" class="form-control" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
 </div>
 
+<?php if (in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
+    <a href="import.php" class="btn btn-success ms-2">
+        <i class="bi bi-file-earmark-excel"></i> Excel Import
+    </a>
+<?php endif; ?>
+
 <?php require_once 'includes/footer.php'; ?>
-</body>
-</html>
 

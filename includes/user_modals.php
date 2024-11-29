@@ -42,7 +42,7 @@
                 <h5 class="modal-title">Benutzer bearbeiten</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editUserForm" onsubmit="return saveEditUser(event)">
+            <form id="editUserForm" onsubmit="return submitEditUser(event)">
                 <input type="hidden" name="id" id="edit_user_id">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -94,9 +94,42 @@ function editUser(id) {
         });
 }
 
+function validateForm(einnahme, ausgabe) {
+    // Konvertiere Strings zu Zahlen und handle Komma/Punkt
+    einnahme = parseFloat(einnahme.replace(',', '.')) || 0;
+    ausgabe = parseFloat(ausgabe.replace(',', '.')) || 0;
+    
+    // Prüfe ob beide Felder leer oder 0 sind
+    if (einnahme === 0 && ausgabe === 0) {
+        return 'Bitte geben Sie entweder eine Einnahme oder eine Ausgabe ein.';
+    }
+    
+    // Prüfe ob beide Felder gefüllt sind
+    if (einnahme > 0 && ausgabe > 0) {
+        return 'Bitte geben Sie entweder nur eine Einnahme oder nur eine Ausgabe ein.';
+    }
+    
+    // Prüfe auf negative Zahlen
+    if (einnahme < 0 || ausgabe < 0) {
+        return 'Bitte geben Sie nur positive Zahlen ein.';
+    }
+    
+    return null; // Keine Fehler
+}
+
 function saveNewUser(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
+    
+    // Validierung
+    const einnahme = formData.get('einnahme');
+    const ausgabe = formData.get('ausgabe');
+    const error = validateForm(einnahme, ausgabe);
+    
+    if (error) {
+        alert(error);
+        return false;
+    }
 
     fetch('save_user.php', {
         method: 'POST',
@@ -125,7 +158,7 @@ function saveNewUser(event) {
     return false;
 }
 
-function saveEditUser(event) {
+function submitEditUser(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
 
