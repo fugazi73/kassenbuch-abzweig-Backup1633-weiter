@@ -1,6 +1,7 @@
 <?php
-// Diese Datei am Anfang jeder Seite einbinden
-require_once 'config.php';
+// Korrigiere den Pfad zur config.php
+$root_dir = dirname(__DIR__); // Gehe ein Verzeichnis nach oben
+require_once($root_dir . '/config.php');
 
 // Lade Einstellungen aus der Datenbank
 $settings = [];

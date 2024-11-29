@@ -170,7 +170,7 @@ body {
 /* Brand-Styles */
 .navbar-brand,
 .footer-brand {
-    font-size: 1rem;
+    font-size: 1.6rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;

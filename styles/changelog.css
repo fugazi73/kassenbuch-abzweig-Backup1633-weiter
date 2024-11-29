@@ -1,0 +1,65 @@
+.changelog-page {
+    --changelog-icon-size: 1.2rem;
+}
+
+.changelog-page .card {
+    transition: transform 0.2s ease-in-out;
+    border: 1px solid var(--border-color);
+}
+
+.changelog-page .card:hover {
+    transform: translateY(-2px);
+}
+
+.changelog-page .card-header {
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.changelog-page .badge {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.changelog-page h3 {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.changelog-page .bi {
+    font-size: var(--changelog-icon-size);
+    vertical-align: -0.125em;
+}
+
+.changelog-page ul li {
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.changelog-page ul li .bi-dot {
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    color: var(--primary-color);
+}
+
+.changelog-page .breadcrumb {
+    background: transparent;
+    padding: 0;
+}
+
+.changelog-page .breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    font-size: 1.2rem;
+    line-height: 1;
+    vertical-align: -0.125em;
+}
+
+/* Dark mode specific styles */
+[data-bs-theme="dark"] .changelog-page .card {
+    background-color: var(--surface-color);
+}
+
+[data-bs-theme="dark"] .changelog-page .badge {
+    background-color: var(--primary-color);
+} 
