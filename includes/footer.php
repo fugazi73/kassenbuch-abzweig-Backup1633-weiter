@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <?php
 // Hole die Einstellungen aus der Datenbank
 $showLinks = false;
@@ -37,10 +38,18 @@ try {
                         <i class="bi bi-envelope"></i> Support
                     </a>
                 </div>
+=======
+<footer class="mt-auto">
+    <div class="container">
+        <div class="row">
+            <div class="col text-center">
+                <p class="mb-0">&copy; <?= date('Y') ?> Kassenbuch</p>
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
             </div>
         </div>
     </div>
 </footer>
+<<<<<<< HEAD
 
 <!-- Bootstrap Bundle mit Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -59,5 +68,7 @@ if (file_exists("js/{$current_page}/index.js")) {
 }
 ?>
 
+=======
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
 </body>
 </html> 

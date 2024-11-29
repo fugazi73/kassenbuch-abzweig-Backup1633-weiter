@@ -1,157 +1,50 @@
 :root {
-    /* Light Theme Variablen */
-    --nav-bg: #f8f9fa;
-    --nav-color: #212529;
-    --nav-hover: #e9ecef;
-    --nav-active: #0d6efd;
-    --nav-active-color: #ffffff;
-    --border-color: #dee2e6;
-    --card-background: #ffffff;
-    --input-background: #ffffff;
-    --input-border: #ced4da;
-    --input-text: #212529;
-    --text-color: #212529;
-}
-
-[data-bs-theme="dark"] {
-    /* Dark Theme Variablen */
-    --nav-bg: #212529;
-    --nav-color: #f8f9fa;
-    --nav-hover: #343a40;
-    --nav-active: #0d6efd;
-    --nav-active-color: #ffffff;
-    --border-color: #495057;
-    --card-background: #2c3237;
-    --input-background: #343a40;
-    --input-border: #495057;
-    --input-text: #f8f9fa;
-    --text-color: #f8f9fa;
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
 }
 
 body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-.main-header {
-    background-color: var(--nav-bg);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.header-logo {
-    height: 35px;
-    width: auto;
-}
-
-.company-name {
-    color: var(--text-color);
-}
-
-/* Navigation Styles */
-.nav-link {
-    color: var(--nav-color);
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: all 0.2s ease-in-out;
-}
-
-.nav-link:hover {
-    background-color: var(--nav-hover);
-    color: var(--nav-color);
-}
-
-.nav-link.active {
-    background-color: var(--nav-active);
-    color: var(--nav-active-color) !important;
-}
-
-/* Dropdown Styles */
-.dropdown-menu {
-    background-color: var(--nav-bg);
-    border-color: var(--border-color);
-}
-
-.dropdown-item {
-    color: var(--nav-color);
-}
-
-.dropdown-item:hover {
-    background-color: var(--nav-hover);
-    color: var(--nav-color);
-}
-
-/* Icons in Navigation */
-.nav-link i {
-    margin-right: 0.25rem;
-}
-
-/* Container Breite */
 .container {
-    max-width: 1400px !important;
-    margin: 0 auto;
-    padding: 0 15px;
+    flex: 1 0 auto;
+    padding: 1rem 0;
 }
 
-/* Header volle Breite, Inhalt zentriert */
-.main-header {
-    width: 100%;
-    background-color: var(--nav-bg);
-    border-bottom: 1px solid var(--border-color);
+footer {
+    flex-shrink: 0;
+    padding: 1rem 0;
+    background-color: var(--bs-gray-100);
+    border-top: 1px solid var(--bs-gray-200);
 }
 
-.main-header .container {
-    padding: 1rem 15px;
+/* Allgemeine Styles */
+.table td, .table th {
+    vertical-align: middle;
 }
 
-/* Header Logo */
-.main-header img {
-    height: 40px;
-    width: auto;
-    transition: opacity 0.3s ease;
+/* Kassenbuch spezifische Styles */
+.kassenstand-display {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
 }
 
-.main-header img:hover {
-    opacity: 0.8;
+.text-success {
+    color: #28a745 !important;
 }
 
-/* Responsive Anpassungen */
-@media (max-width: 768px) {
-    .main-header img {
-        height: 30px;
-    }
-    
-    .main-header .container {
-        padding: 0.75rem 15px;
-    }
+.text-danger {
+    color: #dc3545 !important;
 }
 
-/* Einstellungen Seite */
-.settings-logo-preview {
-    max-height: 100px;
-    max-width: 300px;
-    object-fit: contain;
+.btn-icon {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
 }
 
-.card {
-    background-color: var(--card-background);
-    border-color: var(--border-color);
-}
-
-.form-control {
-    background-color: var(--input-background);
-    border-color: var(--input-border);
-    color: var(--input-text);
-}
-
-.form-control:focus {
-    background-color: var(--input-background);
-    border-color: var(--input-border);
-    color: var(--input-text);
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
-.border-bottom {
-    border-bottom: 1px solid #dee2e6 !important;
-    padding-top: 15px;
-    padding-bottom: 15px;
-} 
+/* Weitere Styles hier */ 

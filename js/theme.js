@@ -252,5 +252,16 @@ document.addEventListener('DOMContentLoaded', () => {
             setTheme(e.matches ? 'dark' : 'light');
         }
     });
+<<<<<<< HEAD
 >>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
 }); 
+=======
+}); 
+
+// Am Ende der Datei hinzufügen
+window.toggleTheme = function() {
+    const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+}; 
+>>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)

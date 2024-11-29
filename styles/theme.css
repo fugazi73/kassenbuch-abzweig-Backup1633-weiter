@@ -90,6 +90,18 @@
     --positive-color: #75b798;
     --negative-color: #ea868f;
     --neutral-color: #6ea8fe;
+    --bs-body-bg: #212529;
+    --bs-body-color: #e9ecef;
+    --bs-border-color: #495057;
+}
+
+[data-bs-theme="dark"] .kassenstand-display {
+    background-color: var(--bs-gray-800);
+}
+
+[data-bs-theme="dark"] .btn-outline-primary,
+[data-bs-theme="dark"] .btn-outline-danger {
+    --bs-btn-color: #e9ecef;
 }
 
 /* Basis Styles */

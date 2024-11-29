@@ -1,66 +1,70 @@
 <?php
+session_start();
 require_once 'config.php';
-check_login();
 
 header('Content-Type: application/json');
 
 try {
-    // Ursprünglichen Eintrag abrufen
-    $stmt = $conn->prepare("SELECT einnahme, ausgabe, datum FROM kassenbuch_eintraege WHERE id = ?");
-    $stmt->bind_param("i", $_POST['id']);
-    $stmt->execute();
-    $alter_eintrag = $stmt->get_result()->fetch_assoc();
-    
-    // Neue Werte vorbereiten
-    $neue_einnahme = floatval($_POST['einnahme'] ?? 0);
-    $neue_ausgabe = floatval($_POST['ausgabe'] ?? 0);
-    
-    // Transaktion starten
-    $conn->begin_transaction();
+    // Validierung
+    if (!isset($_POST['id']) || !isset($_POST['datum']) || !isset($_POST['bemerkung'])) {
+        throw new Exception('Fehlende Pflichtfelder');
+    }
 
-    // Eintrag aktualisieren
-    $stmt = $conn->prepare("UPDATE kassenbuch_eintraege 
-                           SET datum = ?, 
-                               beleg = ?, 
-                               bemerkung = ?, 
-                               einnahme = ?, 
-                               ausgabe = ? 
-                           WHERE id = ?");
-                           
-    $stmt->bind_param("ssdddi", 
-        $_POST['datum'],
-        $_POST['beleg'],
-        $_POST['bemerkung'],
-        $neue_einnahme,
-        $neue_ausgabe,
-        $_POST['id']
-    );
-    $stmt->execute();
+    // Saldo berechnen
+    $einnahme = floatval($_POST['einnahme'] ?? 0);
+    $ausgabe = floatval($_POST['ausgabe'] ?? 0);
+    $saldo = $einnahme - $ausgabe;
 
-    // Alle Kassenstände neu berechnen
     $sql = "UPDATE kassenbuch_eintraege 
-            SET kassenstand = (
-                SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0)
-                FROM kassenbuch_eintraege AS vorherige
-                WHERE vorherige.datum <= kassenbuch_eintraege.datum 
-                AND (vorherige.datum < kassenbuch_eintraege.datum 
-                     OR vorherige.id <= kassenbuch_eintraege.id)
-            )
-            WHERE datum >= ?
-            ORDER BY datum, id";
+            SET datum = ?, 
+                beleg_nr = ?, 
+                bemerkung = ?, 
+                einnahme = ?, 
+                ausgabe = ?,
+                saldo = ?
+            WHERE id = ?";
             
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $_POST['datum']);
-    $stmt->execute();
+    $stmt->bind_param("sssdddi", 
+        $_POST['datum'],
+        $_POST['beleg_nr'],
+        $_POST['bemerkung'],
+        $einnahme,
+        $ausgabe,
+        $saldo,
+        $_POST['id']
+    );
 
-    $conn->commit();
-    echo json_encode(['success' => true]);
+    if ($stmt->execute()) {
+        // Alle nachfolgenden Kassenstände neu berechnen
+        $update_sql = "
+            UPDATE kassenbuch_eintraege ke1
+            JOIN (
+                SELECT id, 
+                       @running_total := @running_total + (einnahme - ausgabe) as new_kassenstand
+                FROM kassenbuch_eintraege, 
+                     (SELECT @running_total := (
+                         SELECT wert FROM einstellungen WHERE name = 'startbetrag'
+                     )) vars
+                WHERE datum >= ?
+                ORDER BY datum ASC, id ASC
+            ) ke2 ON ke1.id = ke2.id
+            SET ke1.kassenstand = ke2.new_kassenstand
+            WHERE ke1.datum >= ?
+        ";
+        
+        $update_stmt = $conn->prepare($update_sql);
+        $update_stmt->bind_param("ss", $_POST['datum'], $_POST['datum']);
+        $update_stmt->execute();
+        
+        echo json_encode(['success' => true]);
+    } else {
+        throw new Exception('Fehler beim Speichern');
+    }
 
 } catch (Exception $e) {
-    $conn->rollback();
-    error_log("Fehler beim Aktualisieren des Eintrags: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'Fehler beim Aktualisieren: ' . $e->getMessage()
+        'message' => $e->getMessage()
     ]);
 } 
