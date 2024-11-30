@@ -69,24 +69,15 @@ if ($row = $custom_columns_result->fetch_assoc()) {
 ?>
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="mb-1">Excel-Import</h4>
-            <p class="text-muted mb-0">Importieren Sie Ihre Kassenbuch-Daten aus einer Excel-Datei</p>
-        </div>
-        <div>
-            <a href="download_template.php" class="btn btn-outline-primary">
-                <i class="bi bi-download"></i> Excel-Vorlage
-            </a>
-        </div>
-    </div>
-
     <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Excel-Import</h5>
+        </div>
         <div class="card-body">
-            <form id="importForm" method="POST" enctype="multipart/form-data">
-                <!-- Spalten-Mapping -->
-                <div class="mb-3">
-                    <h5>Spalten-Zuordnung</h5>
+            <!-- Standard-Spaltenzuordnung -->
+            <div class="mb-4">
+                <h6>Standard-Spaltenzuordnung</h6>
+                <form id="standardMappingForm" class="mb-3">
                     <div class="table-responsive">
                         <table class="table">
                             <thead>
@@ -97,166 +88,205 @@ if ($row = $custom_columns_result->fetch_assoc()) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($standard_columns as $key => $config): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($config['display_name']) ?></td>
-                                    <td>
-                                        <select name="mapping[<?= $key ?>]" class="form-select" 
-                                                <?= $config['required'] ? 'required' : '' ?>>
-                                            <option value="">-</option>
-                                            <?php for ($i = 0; $i < 26; $i++): ?>
-                                                <?php $letter = chr(65 + $i); ?>
-                                                <option value="<?= $letter ?>" 
-                                                    <?= ($saved_mappings[$key] ?? '') === $letter ? 'selected' : '' ?>>
-                                                    Spalte <?= $letter ?>
-                                                </option>
-                                            <?php endfor; ?>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <?php if ($config['required']): ?>
-                                            <i class="bi bi-check-circle text-success"></i>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Benutzerdefinierte Spalten -->
-                <div class="mb-4">
-                    <h5>Benutzerdefinierte Spalten</h5>
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Typ</th>
-                                    <th>Excel-Spalte</th>
-                                    <th>Aktionen</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customColumnsContainer">
                                 <?php
-                                // Hole alle Spalten aus der kassenbuch_eintraege Tabelle
-                                $result = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
-                                $all_columns = [];
-                                while ($row = $result->fetch_assoc()) {
-                                    $all_columns[] = $row['Field'];
+                                $required_columns = [
+                                    'datum' => ['name' => 'Datum', 'required' => true],
+                                    'beleg_nr' => ['name' => 'Beleg-Nr.', 'required' => false],
+                                    'bemerkung' => ['name' => 'Bemerkung', 'required' => true],
+                                    'einnahme' => ['name' => 'Einnahme', 'required' => true],
+                                    'ausgabe' => ['name' => 'Ausgabe', 'required' => true]
+                                ];
+
+                                // Hole gespeicherte Mappings
+                                $mappings = [];
+                                $mapping_result = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'excel_mapping_%'");
+                                while ($row = $mapping_result->fetch_assoc()) {
+                                    $column = str_replace('excel_mapping_', '', $row['setting_key']);
+                                    $mappings[$column] = $row['setting_value'];
                                 }
 
-                                // Standard-Spalten definieren
-                                $standard_columns = ['id', 'datum', 'beleg_nr', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id', 'created_at'];
-
-                                // Benutzerdefinierte Spalten sind alle, die nicht Standard sind
-                                $custom_db_columns = array_diff($all_columns, $standard_columns);
-
-                                // Hole die Konfiguration der benutzerdefinierten Spalten
-                                $custom_columns_result = $conn->query("SELECT setting_value FROM settings WHERE setting_key = 'custom_columns'");
-                                $custom_columns_config = [];
-                                if ($row = $custom_columns_result->fetch_assoc()) {
-                                    $custom_columns_config = json_decode($row['setting_value'], true) ?: [];
-                                }
-
-                                // Zeige alle benutzerdefinierten Spalten an
-                                foreach ($custom_db_columns as $column_name): 
-                                    // Finde die Konfiguration für diese Spalte
-                                    $config = null;
-                                    foreach ($custom_columns_config as $conf) {
-                                        if (strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $conf['name'])) === $column_name) {
-                                            $config = $conf;
-                                            break;
-                                        }
-                                    }
-                                    if (!$config) {
-                                        $config = ['name' => $column_name, 'type' => 'text'];
-                                    }
+                                foreach ($required_columns as $column => $config):
+                                    $current_mapping = $mappings[$column] ?? '';
                                 ?>
                                 <tr>
+                                    <td><?= htmlspecialchars($config['name']) ?></td>
                                     <td>
-                                        <input type="text" class="form-control" 
-                                               name="custom_columns[<?= $column_name ?>][name]" 
-                                               value="<?= htmlspecialchars($config['name']) ?>" required>
-                                    </td>
-                                    <td>
-                                        <select class="form-select" name="custom_columns[<?= $column_name ?>][type]">
-                                            <option value="text" <?= $config['type'] === 'text' ? 'selected' : '' ?>>Text</option>
-                                            <option value="date" <?= $config['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
-                                            <option value="decimal" <?= $config['type'] === 'decimal' ? 'selected' : '' ?>>Dezimal</option>
-                                            <option value="integer" <?= $config['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select name="mapping[<?= $column_name ?>]" class="form-select">
+                                        <select name="standard_mapping[<?= $column ?>]" class="form-select" <?= $config['required'] ? 'required' : '' ?>>
                                             <option value="">-</option>
                                             <?php for ($i = 0; $i < 26; $i++): ?>
                                                 <?php $letter = chr(65 + $i); ?>
                                                 <option value="<?= $letter ?>" 
-                                                    <?= ($saved_mappings[$column_name] ?? '') === $letter ? 'selected' : '' ?>>
+                                                    <?= $current_mapping === $letter ? 'selected' : '' ?>>
                                                     Spalte <?= $letter ?>
                                                 </option>
                                             <?php endfor; ?>
                                         </select>
                                     </td>
                                     <td>
-                                        <button type="button" class="btn btn-danger btn-sm delete-column" 
-                                                data-column-name="<?= htmlspecialchars($column_name) ?>">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   <?= $config['required'] ? 'checked disabled' : '' ?>>
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <button type="button" class="btn btn-success mt-3" id="addColumnBtn">
-                            <i class="bi bi-plus-circle"></i> Neue Spalte
-                        </button>
-                        <button type="button" class="btn btn-primary mt-3" id="saveColumnsBtn">
-                            <i class="bi bi-save"></i> Spalten speichern
-                        </button>
                     </div>
-                </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Standard-Zuordnung speichern
+                    </button>
+                </form>
+            </div>
 
-                <!-- Excel-Import am Ende -->
-                <div class="mt-4 pt-3 border-top">
-                    <h5>Excel-Import</h5>
+            <!-- Benutzerdefinierte Spalten -->
+            <div class="mb-4">
+                <h6>Benutzerdefinierte Spalten</h6>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Typ</th>
+                                <th>Excel-Spalte</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customColumnsContainer">
+                            <?php
+                            // Hole alle Spalten aus der kassenbuch_eintraege Tabelle
+                            $result = $conn->query("SHOW COLUMNS FROM kassenbuch_eintraege");
+                            $all_columns = [];
+                            while ($row = $result->fetch_assoc()) {
+                                $all_columns[] = $row['Field'];
+                            }
+
+                            // Standard-Spalten definieren
+                            $standard_columns = ['id', 'datum', 'beleg_nr', 'bemerkung', 'einnahme', 'ausgabe', 'saldo', 'kassenstand', 'user_id', 'created_at'];
+
+                            // Benutzerdefinierte Spalten sind alle, die nicht Standard sind
+                            $custom_db_columns = array_diff($all_columns, $standard_columns);
+
+                            // Hole die Konfiguration der benutzerdefinierten Spalten
+                            $custom_columns_result = $conn->query("SELECT setting_value FROM settings WHERE setting_key = 'custom_columns'");
+                            $custom_columns_config = [];
+                            if ($row = $custom_columns_result->fetch_assoc()) {
+                                $custom_columns_config = json_decode($row['setting_value'], true) ?: [];
+                            }
+
+                            // Zeige alle benutzerdefinierten Spalten an
+                            foreach ($custom_db_columns as $column_name): 
+                                // Finde die Konfiguration für diese Spalte
+                                $config = null;
+                                foreach ($custom_columns_config as $conf) {
+                                    if (strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $conf['name'])) === $column_name) {
+                                        $config = $conf;
+                                        break;
+                                    }
+                                }
+                                if (!$config) {
+                                    $config = ['name' => $column_name, 'type' => 'text'];
+                                }
+                            ?>
+                            <tr>
+                                <td>
+                                    <input type="text" class="form-control" 
+                                           name="custom_columns[<?= $column_name ?>][name]" 
+                                           value="<?= htmlspecialchars($config['name']) ?>" required>
+                                </td>
+                                <td>
+                                    <select class="form-select" name="custom_columns[<?= $column_name ?>][type]">
+                                        <option value="text" <?= $config['type'] === 'text' ? 'selected' : '' ?>>Text</option>
+                                        <option value="date" <?= $config['type'] === 'date' ? 'selected' : '' ?>>Datum</option>
+                                        <option value="decimal" <?= $config['type'] === 'decimal' ? 'selected' : '' ?>>Dezimal</option>
+                                        <option value="integer" <?= $config['type'] === 'integer' ? 'selected' : '' ?>>Ganzzahl</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="mapping[<?= $column_name ?>]" class="form-select">
+                                        <option value="">-</option>
+                                        <?php for ($i = 0; $i < 26; $i++): ?>
+                                            <?php $letter = chr(65 + $i); ?>
+                                            <option value="<?= $letter ?>" 
+                                                <?= ($mappings[$column_name] ?? '') === $letter ? 'selected' : '' ?>>
+                                                Spalte <?= $letter ?>
+                                            </option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm delete-column" 
+                                            data-column-name="<?= htmlspecialchars($column_name) ?>">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-success" id="addColumnBtn">
+                        <i class="bi bi-plus-circle"></i> Neue Spalte
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveColumnsBtn">
+                        <i class="bi bi-save"></i> Spalten speichern
+                    </button>
+                </div>
+            </div>
+
+            <!-- Excel-Upload -->
+            <div class="mt-4 pt-3 border-top">
+                <h6>Excel-Datei hochladen</h6>
+                <form id="uploadForm" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label class="form-label">Excel-Datei auswählen</label>
                         <input type="file" class="form-control" name="excel_file" 
                                accept=".xlsx,.xls" required>
                     </div>
-
                     <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
-                                   name="has_header" id="hasHeader" checked>
-                            <label class="form-check-label" for="hasHeader">
-                                Erste Zeile enthält Überschriften
-                            </label>
+                        <label class="form-label">Anzahl der Überschriftszeilen</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="headerRows" name="header_rows" 
+                                   value="1" min="1" max="10">
+                            <button type="button" class="btn btn-outline-secondary" id="detectHeaderRows">
+                                <i class="bi bi-magic"></i> Automatisch erkennen
+                            </button>
                         </div>
+                        <small class="text-muted">
+                            Geben Sie an, wie viele Zeilen am Anfang der Excel-Datei übersprungen werden sollen.
+                            Die letzte Überschriftszeile wird für die Spaltennamen verwendet.
+                        </small>
                     </div>
-
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="hasHeader" name="hasHeader" checked>
+                        <label class="form-check-label" for="hasHeader">
+                            Letzte Überschriftszeile enthält Spaltennamen
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> Importieren
+                        <i class="bi bi-upload"></i> Vorschau laden
+                    </button>
+                </form>
+            </div>
+
+            <!-- Vorschau-Bereich -->
+            <div id="previewArea" class="mt-4 d-none">
+                <h6>Vorschau der Überschriftszeilen</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered">
+                        <tbody id="headerPreview"></tbody>
+                    </table>
+                </div>
+                <h6>Vorschau der Daten</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead id="previewHeader"></thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <button type="button" id="importButton" class="btn btn-success">
+                        <i class="bi bi-file-earmark-excel"></i> Daten importieren
                     </button>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Vorschau-Bereich -->
-    <div id="previewArea" class="card mt-4 d-none">
-        <div class="card-header">
-            <h5 class="mb-0">Vorschau</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead id="previewHeader"></thead>
-                    <tbody id="previewBody"></tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -264,30 +294,49 @@ if ($row = $custom_columns_result->fetch_assoc()) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const importForm = document.getElementById('importForm');
+    const standardMappingForm = document.getElementById('standardMappingForm');
+    const uploadForm = document.getElementById('uploadForm');
     const previewArea = document.getElementById('previewArea');
-    const fileInput = document.querySelector('input[name="excel_file"]');
+    const headerRowsInput = document.getElementById('headerRows');
+    const hasHeaderCheckbox = document.getElementById('hasHeader');
+    let currentFile = null;
 
-    // Datei-Upload Handler
-    fileInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Event-Listener für Dateiauswahl
+    document.querySelector('input[name="excel_file"]').addEventListener('change', function(e) {
+        currentFile = e.target.files[0];
+        if (currentFile) {
+            loadPreview(currentFile);
+        }
+    });
 
-        // Zeige Dateiname an
-        const fileName = document.createElement('div');
-        fileName.className = 'selected-file mt-2 text-muted';
-        fileName.textContent = `Ausgewählte Datei: ${file.name}`;
-        this.parentNode.appendChild(fileName);
+    // Event-Listener für Änderung der Überschriftszeilen
+    headerRowsInput.addEventListener('change', function() {
+        if (currentFile) {
+            loadPreview(currentFile);
+        }
+    });
 
-        // Lade Vorschau
-        await loadPreview(file);
+    // Event-Listener für Header-Checkbox
+    hasHeaderCheckbox.addEventListener('change', function() {
+        if (currentFile) {
+            loadPreview(currentFile);
+        }
+    });
+
+    // Excel-Upload und Vorschau
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (currentFile) {
+            await loadPreview(currentFile);
+        }
     });
 
     // Vorschau laden
     async function loadPreview(file) {
         const formData = new FormData();
         formData.append('excel_file', file);
-        formData.append('preview', '1');
+        formData.append('header_rows', headerRowsInput.value);
+        formData.append('has_header', hasHeaderCheckbox.checked);
 
         try {
             const response = await fetch('preview_excel.php', {
@@ -295,21 +344,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server Response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            if (data.success) {
-                showPreview(data.preview);
-                updateMappingSuggestions(data.columns);
-            } else {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const responseText = await response.text();
+                console.error('Invalid Content-Type:', contentType);
+                console.error('Response Text:', responseText);
+                throw new Error('Server hat keine JSON-Antwort gesendet');
+            }
+
+            const data = await response.json();
+            console.log('Preview Response:', data); // Debug-Ausgabe
+
+            if (!data.success) {
                 throw new Error(data.message || 'Fehler beim Laden der Vorschau');
             }
+
+            showHeaderPreview(data.preview.header_rows);
+            showPreview(data.preview);
+            updateMappingSuggestions(data.preview.columns, data.preview.db_columns);
+            previewArea.classList.remove('d-none');
+
         } catch (error) {
             console.error('Error:', error);
             showError('Fehler beim Laden der Vorschau: ' + error.message);
         }
     }
 
-    // Vorschau anzeigen
+    // Überschriftszeilen-Vorschau anzeigen
+    function showHeaderPreview(headerRows) {
+        const headerPreview = document.getElementById('headerPreview');
+        headerPreview.innerHTML = headerRows.map((row, index) => `
+            <tr class="${index === headerRows.length - 1 ? 'table-primary' : ''}">
+                <td class="text-muted" style="width: 50px;">Zeile ${index + 1}</td>
+                ${row.map(cell => `<td>${cell || ''}</td>`).join('')}
+            </tr>
+        `).join('');
+    }
+
+    // Datenvorschau anzeigen
     function showPreview(preview) {
         const previewHeader = document.getElementById('previewHeader');
         const previewBody = document.getElementById('previewBody');
@@ -317,23 +395,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Header erstellen
         previewHeader.innerHTML = `
             <tr>
-                ${preview.columns.map(col => `<th>${col}</th>`).join('')}
+                ${preview.columns.map(col => `<th>${col || ''}</th>`).join('')}
             </tr>
         `;
 
         // Erste 5 Zeilen als Vorschau
         previewBody.innerHTML = preview.rows.slice(0, 5).map(row => `
             <tr>
-                ${row.map(cell => `<td>${cell}</td>`).join('')}
+                ${row.map(cell => `<td>${cell || ''}</td>`).join('')}
             </tr>
         `).join('');
-
-        // Vorschau anzeigen
-        previewArea.classList.remove('d-none');
     }
 
     // Mapping-Vorschläge aktualisieren
-    function updateMappingSuggestions(excelColumns) {
+    function updateMappingSuggestions(columns, dbColumns) {
         const mappingSelects = document.querySelectorAll('select[name^="mapping["]');
         
         mappingSelects.forEach(select => {
@@ -342,91 +417,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                    .textContent.toLowerCase();
 
             // Finde passende Excel-Spalte
-            const matchingColumn = excelColumns.findIndex(col => 
-                col.toLowerCase().includes(columnName)
+            const matchingIndex = dbColumns.findIndex(col => 
+                col.toLowerCase() === columnName
             );
 
-            if (matchingColumn !== -1) {
-                select.value = String.fromCharCode(65 + matchingColumn);
+            if (matchingIndex !== -1) {
+                select.value = String.fromCharCode(65 + matchingIndex);
             }
         });
     }
-
-    // Spalten speichern
-    document.getElementById('saveColumnsBtn').addEventListener('click', async function() {
-        const customColumns = [];
-        document.querySelectorAll('#customColumnsContainer tr').forEach(row => {
-            customColumns.push({
-                name: row.querySelector('input[name*="[name]"]').value,
-                type: row.querySelector('select[name*="[type]"]').value
-            });
-        });
-
-        try {
-            const response = await fetch('save_custom_columns.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    columns: customColumns
-                })
-            });
-
-            const data = await response.json();
-            if (!data.success) {
-                throw new Error(data.message || 'Fehler beim Speichern der Spalten');
-            }
-
-            showSuccess('Spalten wurden erfolgreich gespeichert');
-            // Optional: Seite neu laden um die gespeicherten Spalten anzuzeigen
-            // setTimeout(() => location.reload(), 1000);
-        } catch (error) {
-            console.error('Error:', error);
-            showError('Fehler beim Speichern der Spalten: ' + error.message);
-        }
-    });
-
-    // Import-Formular Handler anpassen
-    document.getElementById('importForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const submitButton = this.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importiere...';
-
-        try {
-            const formData = new FormData(this);
-            const response = await fetch('process_import.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                showSuccess(data.message);
-                setTimeout(() => location.reload(), 2000);
-            } else {
-                throw new Error(data.message || 'Import fehlgeschlagen');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showError('Fehler beim Import: ' + error.message);
-        } finally {
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="bi bi-upload"></i> Importieren';
-        }
-    });
 
     // Hilfsfunktionen für Benachrichtigungen
     function showSuccess(message) {
         const alert = createAlert('success', message);
-        importForm.insertAdjacentElement('beforebegin', alert);
+        document.querySelector('.card-body').insertAdjacentElement('afterbegin', alert);
     }
 
     function showError(message) {
         const alert = createAlert('danger', message);
-        importForm.insertAdjacentElement('beforebegin', alert);
+        document.querySelector('.card-body').insertAdjacentElement('afterbegin', alert);
     }
 
     function createAlert(type, message) {
@@ -446,78 +455,69 @@ document.addEventListener('DOMContentLoaded', function() {
         return alert;
     }
 
-    // Neue Spalte hinzufügen
-    document.getElementById('addColumnBtn').addEventListener('click', function() {
-        const container = document.getElementById('customColumnsContainer');
-        const index = container.children.length;
-        
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td>
-                <input type="text" class="form-control" 
-                       name="custom_columns[${index}][name]" required>
-            </td>
-            <td>
-                <select class="form-select" name="custom_columns[${index}][type]">
-                    <option value="text">Text</option>
-                    <option value="date">Datum</option>
-                    <option value="decimal">Dezimal</option>
-                    <option value="integer">Ganzzahl</option>
-                </select>
-            </td>
-            <td>
-                <select name="mapping[new_${index}]" class="form-select">
-                    <option value="">-</option>
-                    ${Array.from(Array(26)).map((_, i) => 
-                        `<option value="${String.fromCharCode(65 + i)}">Spalte ${String.fromCharCode(65 + i)}</option>`
-                    ).join('')}
-                </select>
-            </td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm delete-column">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        `;
-        container.appendChild(newRow);
+    // Automatische Erkennung der Überschriftszeilen
+    document.getElementById('detectHeaderRows').addEventListener('click', async function() {
+        if (!currentFile) {
+            showError('Bitte wählen Sie zuerst eine Excel-Datei aus.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('excel_file', currentFile);
+        formData.append('detect_headers', '1');
+
+        try {
+            const response = await fetch('detect_headers.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                headerRowsInput.value = data.header_rows;
+                await loadPreview(currentFile);
+            } else {
+                throw new Error(data.message || 'Fehler bei der Erkennung');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Fehler bei der automatischen Erkennung: ' + error.message);
+        }
     });
 
-    // Spalte löschen
-    document.addEventListener('click', async function(e) {
-        if (e.target.closest('.delete-column')) {
-            const button = e.target.closest('.delete-column');
-            const row = button.closest('tr');
-            const columnName = button.dataset.columnName;
+    // Import-Button Event-Handler
+    document.getElementById('importButton').addEventListener('click', async function() {
+        if (!currentFile) {
+            showError('Bitte wählen Sie zuerst eine Excel-Datei aus.');
+            return;
+        }
 
-            if (confirm('Möchten Sie diese Spalte wirklich löschen?')) {
-                try {
-                    if (columnName) {
-                        const response = await fetch('delete_custom_column.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ columnName: columnName })
-                        });
+        const formData = new FormData();
+        formData.append('excel_file', currentFile);
+        formData.append('header_rows', headerRowsInput.value);
+        formData.append('has_header', hasHeaderCheckbox.checked);
 
-                        if (!response.ok) {
-                            throw new Error('Netzwerk-Antwort war nicht ok');
-                        }
+        try {
+            const response = await fetch('process_import.php', {
+                method: 'POST',
+                body: formData
+            });
 
-                        const data = await response.json();
-                        if (!data.success) {
-                            throw new Error(data.message || 'Fehler beim Löschen der Spalte');
-                        }
-
-                        showSuccess('Spalte wurde erfolgreich gelöscht');
-                        // Seite nach dem Löschen neu laden
-                        setTimeout(() => location.reload(), 1000);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    showError('Fehler beim Löschen der Spalte: ' + error.message);
-                }
+            const data = await response.json();
+            if (data.success) {
+                // Erfolgreicher Import
+                const alert = createAlert('success', 'Die Daten wurden erfolgreich importiert!');
+                document.querySelector('.card-body').insertBefore(alert, document.querySelector('.card-body').firstChild);
+                
+                // Optional: Formular zurücksetzen
+                uploadForm.reset();
+                previewArea.classList.add('d-none');
+            } else {
+                throw new Error(data.message || 'Fehler beim Import');
             }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Fehler beim Import: ' + error.message);
         }
     });
 });
