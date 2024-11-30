@@ -1,6 +1,7 @@
 <?php
 function is_admin() {
-    return isset($_SESSION['user_role']) && ($_SESSION['user_role'] === 'admin' || $_SESSION['user_role'] === 'chef');
+    return isset($_SESSION['user_role']) && 
+           in_array($_SESSION['user_role'], ['admin', 'chef']);
 }
 
 function is_chef() {
@@ -40,9 +41,6 @@ function get_pagination_url($page) {
 }
 
 function hash_password($password) {
-    if (empty($password)) {
-        throw new Exception('Passwort darf nicht leer sein');
-    }
     return password_hash($password, PASSWORD_DEFAULT);
 }
 
@@ -56,4 +54,8 @@ function check_chef_permission() {
 
 function is_chef_or_admin() {
     return isset($_SESSION['user_role']) && ($_SESSION['user_role'] === 'chef' || $_SESSION['user_role'] === 'admin');
+}
+
+function verify_password($password, $hash) {
+    return password_verify($password, $hash);
 }

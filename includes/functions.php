@@ -37,4 +37,21 @@ function getSetting($conn, $key, $default = null) {
     return $default;
 }
 
+// Zentrale Fehlerbehandlung hinzufügen:
+function handle_error($error, $redirect = true) {
+    error_log($error);
+    $_SESSION['error'] = $error;
+    if ($redirect) {
+        header('Location: error.php');
+        exit;
+    }
+}
+
+function log_action($message, $level = 'info') {
+    $log_file = __DIR__ . '/../logs/' . date('Y-m') . '.log';
+    $date = date('Y-m-d H:i:s');
+    $log_message = "[$date][$level] $message\n";
+    error_log($log_message, 3, $log_file);
+}
+
 // ... weitere Funktionen

@@ -188,26 +188,32 @@ function getRoleDisplayName($role) {
 // Funktion für das Erstellen eines neuen Benutzers
 function submitCreateUser(event) {
     event.preventDefault();
+    
     const form = event.target;
     const formData = new FormData(form);
-
-    fetch('create_user.php', {
+    
+    fetch('save_user.php', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Netzwerk-Antwort war nicht ok');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('newUserModal'));
             modal.hide();
             location.reload();
         } else {
-            alert(data.message || 'Fehler beim Erstellen des Benutzers');
+            throw new Error(data.message || 'Fehler beim Speichern des Benutzers');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten');
+        alert('Ein Fehler ist aufgetreten: ' + error.message);
     });
 
     return false;
@@ -267,19 +273,30 @@ function submitEditUser(event) {
 // Funktion zum Löschen eines Benutzers
 function deleteUser(id) {
     if (confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
-        fetch('delete_user.php?id=' + id)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert(data.message || 'Fehler beim Löschen des Benutzers');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Ein Fehler ist aufgetreten');
-            });
+        const formData = new FormData();
+        formData.append('id', id);
+
+        fetch('delete_user.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Netzwerk-Antwort war nicht ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                throw new Error(data.message || 'Fehler beim Löschen des Benutzers');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ein Fehler ist aufgetreten: ' + error.message);
+        });
     }
 }
 </script>

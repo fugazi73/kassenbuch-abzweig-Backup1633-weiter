@@ -49,16 +49,28 @@ require_once 'includes/header.php';
                                 </td>
                                 <td>
                                     <?php
-                                    $roleBadgeClass = match($user['role']) {
-                                        'admin' => 'bg-primary',
-                                        'chef' => 'bg-success',
-                                        default => 'bg-secondary'
-                                    };
-                                    $roleDisplayName = match($user['role']) {
-                                        'admin' => 'Administrator',
-                                        'chef' => 'Chef',
-                                        default => 'Benutzer'
-                                    };
+                                    $roleBadgeClass = '';
+                                    switch($user['role']) {
+                                        case 'admin':
+                                            $roleBadgeClass = 'bg-primary';
+                                            break;
+                                        case 'chef':
+                                            $roleBadgeClass = 'bg-success'; 
+                                            break;
+                                        default:
+                                            $roleBadgeClass = 'bg-secondary';
+                                    }
+                                    $roleDisplayName = '';
+                                    switch($user['role']) {
+                                        case 'admin':
+                                            $roleDisplayName = 'Administrator';
+                                            break;
+                                        case 'chef':
+                                            $roleDisplayName = 'Chef';
+                                            break;
+                                        default:
+                                            $roleDisplayName = 'Benutzer';
+                                    }
                                     ?>
                                     <span class="badge <?= $roleBadgeClass ?>">
                                         <?= $roleDisplayName ?>

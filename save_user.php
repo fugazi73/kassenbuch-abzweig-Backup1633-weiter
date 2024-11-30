@@ -1,25 +1,13 @@
 <?php
-// Temporär für Debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 require_once 'config.php';
-check_login();
+require_once 'functions.php';
 
-// Logging für Debugging
-error_log("Save User aufgerufen");
-
-$valid_roles = ['admin', 'user', 'chef'];
+header('Content-Type: application/json');
 
 try {
-    // Prüfe Admin-Rechte
+    // Prüfe Admin-Berechtigung
     if (!is_admin()) {
-        throw new Exception('Zugriff verweigert');
-    }
-
-    // Prüfe Request-Methode
-    if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-        throw new Exception('Ungültige Request-Methode');
+        throw new Exception('Keine Berechtigung');
     }
 
     // Validiere Eingaben
@@ -27,57 +15,34 @@ try {
         throw new Exception('Benutzername und Passwort sind erforderlich');
     }
 
-    $username = htmlspecialchars(strip_tags($_POST['username']));
+    $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
     $password = $_POST['password'];
-    $role = in_array($_POST['role'] ?? 'user', $valid_roles) ? $_POST['role'] : 'user';
-
-    // Debug-Logging hinzufügen
-    error_log("Empfangene Rolle: " . $_POST['role']);
-    error_log("Gespeicherte Rolle: " . $role);
-
-    // Prüfe Datenbankverbindung
-    if (!$conn) {
-        throw new Exception('Keine Datenbankverbindung');
-    }
+    $role = in_array($_POST['role'] ?? 'user', ['admin', 'user', 'chef']) ? $_POST['role'] : 'user';
 
     // Prüfe ob Benutzer existiert
     $stmt = $conn->prepare("SELECT id FROM benutzer WHERE username = ?");
-    if (!$stmt) {
-        throw new Exception('Datenbankfehler: ' . $conn->error);
-    }
-    
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
+    if ($stmt->get_result()->num_rows > 0) {
         throw new Exception('Benutzername existiert bereits');
     }
 
     // Erstelle neuen Benutzer
     $hashed_password = hash_password($password);
-    $insert_stmt = $conn->prepare("INSERT INTO benutzer (username, password, role) VALUES (?, ?, ?)");
-    if (!$insert_stmt) {
-        throw new Exception('Datenbankfehler: ' . $conn->error);
-    }
-
-    $insert_stmt->bind_param("sss", $username, $hashed_password, $role);
+    $stmt = $conn->prepare("INSERT INTO benutzer (username, password, role) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $username, $hashed_password, $role);
     
-    if (!$insert_stmt->execute()) {
-        throw new Exception('Fehler beim Speichern: ' . $insert_stmt->error);
+    if ($stmt->execute()) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Benutzer wurde erfolgreich erstellt'
+        ]);
+    } else {
+        throw new Exception('Fehler beim Erstellen des Benutzers');
     }
-
-    // Erfolgreiche Antwort
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => true,
-        'message' => 'Benutzer wurde erfolgreich erstellt'
-    ]);
 
 } catch (Exception $e) {
-    error_log("Fehler in save_user.php: " . $e->getMessage());
-    
-    header('Content-Type: application/json');
+    http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

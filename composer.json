@@ -1,6 +1,16 @@
 {
+    "name": "ihr-namespace/projekt-name",
+    "description": "Ihre Projektbeschreibung",
+    "type": "project",
     "require": {
-        "phpoffice/phpspreadsheet": "^3.5",
-        "tecnickcom/tcpdf": "^6.7"
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        },
+        "files": [
+            "src/functions.php"
+        ]
     }
 }

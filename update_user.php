@@ -1,54 +1,41 @@
 <?php
 require_once 'config.php';
-check_login();
-if (!is_admin()) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Zugriff verweigert']);
-    exit;
-}
+require_once 'functions.php';
 
-// Debug-Logging hinzufügen
-error_log("UPDATE USER - Empfangene Daten: " . print_r($_POST, true));
-
-if (!isset($_SESSION['user_id']) || !isset($_POST['id'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Fehlende Parameter']);
-    exit;
-}
-
-$id = (int)$_POST['id'];
-$username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
-$password = $_POST['password'] ?? '';
-$role = $_POST['role'];
-
-// Validierung der Rolle
-$valid_roles = ['admin', 'user', 'chef'];
-if (!in_array($role, $valid_roles)) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Ungültige Rolle']);
-    exit;
-}
+header('Content-Type: application/json');
 
 try {
-    if (!empty($password)) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    if (!is_admin()) {
+        throw new Exception('Keine Berechtigung');
+    }
+
+    if (!isset($_POST['id'])) {
+        throw new Exception('Benutzer ID fehlt');
+    }
+
+    $id = (int)$_POST['id'];
+    $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
+    $role = in_array($_POST['role'] ?? 'user', ['admin', 'user', 'chef']) ? $_POST['role'] : 'user';
+    
+    // Optional: Passwort ändern
+    if (!empty($_POST['password'])) {
+        $password = hash_password($_POST['password']);
         $stmt = $conn->prepare("UPDATE benutzer SET username = ?, password = ?, role = ? WHERE id = ?");
-        $stmt->bind_param("sssi", $username, $hashed_password, $role, $id);
+        $stmt->bind_param("sssi", $username, $password, $role, $id);
     } else {
         $stmt = $conn->prepare("UPDATE benutzer SET username = ?, role = ? WHERE id = ?");
         $stmt->bind_param("ssi", $username, $role, $id);
     }
-
-    // Debug-Logging vor der Ausführung
-    error_log("UPDATE USER - SQL Ausführung mit Rolle: " . $role);
-
-    header('Content-Type: application/json');
+    
     if ($stmt->execute()) {
-        echo json_encode(['success' => true, 'message' => 'Benutzer wurde aktualisiert']);
+        echo json_encode(['success' => true]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Fehler beim Aktualisieren des Benutzers']);
+        throw new Exception('Fehler beim Aktualisieren');
     }
+
 } catch (Exception $e) {
-    error_log("UPDATE USER - Fehler: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } 

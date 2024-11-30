@@ -1,36 +1,41 @@
 <?php
 require_once 'config.php';
-check_login();
+require_once 'functions.php';
 
 header('Content-Type: application/json');
 
-if (!is_admin()) {
-    echo json_encode(['success' => false, 'message' => 'Keine Berechtigung']);
-    exit;
-}
-
-if (!isset($_POST['id'])) {
-    echo json_encode(['success' => false, 'message' => 'Keine ID angegeben']);
-    exit;
-}
-
-$id = (int)$_POST['id'];
-
-// Verhindere das Löschen des eigenen Accounts
-if ($id === $_SESSION['user_id']) {
-    echo json_encode(['success' => false, 'message' => 'Sie können Ihren eigenen Account nicht löschen']);
-    exit;
-}
-
 try {
+    if (!is_admin()) {
+        throw new Exception('Keine Berechtigung');
+    }
+
+    if (!isset($_POST['id'])) {
+        throw new Exception('Keine ID angegeben');
+    }
+
+    $id = (int)$_POST['id'];
+
+    // Verhindere das Löschen des eigenen Accounts
+    if ($id === $_SESSION['user_id']) {
+        throw new Exception('Sie können Ihren eigenen Account nicht löschen');
+    }
+
     $stmt = $conn->prepare("DELETE FROM benutzer WHERE id = ?");
     $stmt->bind_param("i", $id);
     
     if ($stmt->execute()) {
-        echo json_encode(['success' => true, 'message' => 'Benutzer wurde gelöscht']);
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Benutzer wurde gelöscht'
+        ]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Fehler beim Löschen des Benutzers']);
+        throw new Exception('Fehler beim Löschen des Benutzers');
     }
+
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 } 
