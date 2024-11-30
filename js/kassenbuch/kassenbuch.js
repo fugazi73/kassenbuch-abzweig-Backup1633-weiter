@@ -1,39 +1,118 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Einnahme/Ausgabe Toggle-Logik
-    const einnahmeField = document.getElementById('einnahme');
-    const ausgabeField = document.getElementById('ausgabe');
+    // Checkbox Funktionalität
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const entryCheckboxes = document.querySelectorAll('.entry-checkbox');
+    const massDeleteBtn = document.getElementById('massDeleteBtn');
+
+    // "Alle auswählen" Checkbox
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('click', function() {
+            const isChecked = this.checked;
+            entryCheckboxes.forEach(function(checkbox) {
+                checkbox.checked = isChecked;
+            });
+            updateMassDeleteButton();
+        });
+    }
+
+    // Mausauswahl-Funktionalität
+    let isSelecting = false;
+    let selectionStart = null;
+    let lastCheckedState = false;
+
+    // Verhindere Standard-Text-Auswahl während der Checkbox-Auswahl
+    document.addEventListener('selectstart', function(e) {
+        if (isSelecting) {
+            e.preventDefault();
+        }
+    });
+
+    // Mousedown Event für Checkboxen
+    entryCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('mousedown', function(e) {
+            isSelecting = true;
+            selectionStart = this;
+            lastCheckedState = !this.checked; // Invertiere aktuellen Status
+            this.checked = lastCheckedState;
+            updateMassDeleteButton();
+            e.preventDefault(); // Verhindere Text-Auswahl
+        });
+    });
+
+    // Mouseover Event für Checkboxen
+    entryCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('mouseover', function() {
+            if (isSelecting) {
+                this.checked = lastCheckedState;
+                updateMassDeleteButton();
+            }
+        });
+    });
+
+    // Mouseup Event - Ende der Auswahl
+    document.addEventListener('mouseup', function() {
+        isSelecting = false;
+        selectionStart = null;
+    });
+
+    // Einzelne Checkboxen
+    entryCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateMassDeleteButton);
+    });
+
+    // Massenlöschung
+    if (massDeleteBtn) {
+        massDeleteBtn.addEventListener('click', async function() {
+            const selectedBoxes = document.querySelectorAll('.entry-checkbox:checked');
+            if (selectedBoxes.length === 0) return;
+
+            if (!confirm(`Möchten Sie wirklich ${selectedBoxes.length} Einträge löschen?`)) {
+                return;
+            }
+
+            const selectedIds = [];
+            selectedBoxes.forEach(function(box) {
+                selectedIds.push(box.getAttribute('data-entry-id'));
+            });
+
+            try {
+                const response = await fetch('mass_delete_entries.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ids: selectedIds })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    throw new Error(data.error || 'Fehler beim Löschen der Einträge');
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert(error.message);
+            }
+        });
+    }
+});
+
+// Update Lösch-Button
+function updateMassDeleteButton() {
+    const massDeleteBtn = document.getElementById('massDeleteBtn');
+    const checkedBoxes = document.querySelectorAll('.entry-checkbox:checked');
     
-    function toggleFields(event) {
-        const sourceField = event.target;
-        const targetField = sourceField === einnahmeField ? ausgabeField : einnahmeField;
-        
-        if (sourceField.value && sourceField.value !== '0') {
-            targetField.disabled = true;
-            targetField.value = '';
+    if (massDeleteBtn) {
+        if (checkedBoxes.length > 0) {
+            massDeleteBtn.style.display = 'inline-block';
+            const text = checkedBoxes.length === 1 ? '1 Eintrag löschen' : `${checkedBoxes.length} Einträge löschen`;
+            massDeleteBtn.innerHTML = `<i class="bi bi-trash"></i> ${text}`;
         } else {
-            targetField.disabled = false;
+            massDeleteBtn.style.display = 'none';
         }
     }
-    
-    einnahmeField.addEventListener('input', toggleFields);
-    ausgabeField.addEventListener('input', toggleFields);
-
-    // Edit Button Handler
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            editEntry(id);
-        });
-    });
-
-    // Delete Button Handler
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            deleteEntry(id);
-        });
-    });
-});
+}
 
 // Speicherfunktion
 function saveEntry() {

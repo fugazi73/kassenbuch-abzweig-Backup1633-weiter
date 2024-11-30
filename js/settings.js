@@ -1,167 +1,99 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Kassenstart-Formular
     const kassenstartForm = document.getElementById('kassenstartForm');
     if (kassenstartForm) {
-        kassenstartForm.addEventListener('submit', function(e) {
+        kassenstartForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const formData = new FormData();
-            formData.append('datum', document.getElementById('startdatum').value);
-            formData.append('betrag', document.getElementById('startbetrag').value);
+            const startdatumInput = document.getElementById('startdatum');
+            const startbetragInput = document.getElementById('startbetrag');
             
-            fetch('save_startbetrag.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+            if (!startdatumInput || !startbetragInput) {
+                alert('Formularfelder konnten nicht gefunden werden.');
+                return;
+            }
+
+            const startdatum = startdatumInput.value;
+            const startbetrag = startbetragInput.value;
+            
+            if (!startdatum || !startbetrag) {
+                alert('Bitte füllen Sie alle Felder aus.');
+                return;
+            }
+
+            formData.append('datum', startdatum);
+            formData.append('betrag', startbetrag);
+            
+            try {
+                const response = await fetch('save_kassenstart.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
                 if (data.success) {
-                    alert('Kassenstart wurde gespeichert');
-                    location.reload();
+                    alert('Kassenstart wurde erfolgreich gespeichert');
+                    window.location.reload();
                 } else {
                     alert('Fehler: ' + data.message);
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 alert('Ein Fehler ist aufgetreten');
-            });
-        });
-    }
-
-    let columnCounter = document.querySelectorAll('.custom-column').length;
-
-    // Button zum Hinzufügen neuer Spalten
-    document.getElementById('addColumnBtn').addEventListener('click', function() {
-        const columnCount = document.querySelectorAll('.custom-column').length;
-        const template = `
-            <div class="row g-3 mb-3 custom-column">
-                <div class="col-md-3">
-                    <label class="form-label">Spaltenname</label>
-                    <input type="text" class="form-control" name="columns[custom][${columnCount}][name]" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Typ</label>
-                    <select class="form-select" name="columns[custom][${columnCount}][type]" required>
-                        <option value="text">Text</option>
-                        <option value="date">Datum</option>
-                        <option value="decimal">Dezimalzahl</option>
-                        <option value="integer">Ganzzahl</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Excel-Spalte</label>
-                    <select class="form-select" name="columns[custom][${columnCount}][excel_column]" required>
-                        <option value="">Spalte auswählen</option>
-                        ${Array.from(Array(26)).map((_, i) => 
-                            `<option value="${String.fromCharCode(65 + i)}">Spalte ${String.fromCharCode(65 + i)}</option>`
-                        ).join('')}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="button" class="btn btn-danger d-block w-100 remove-column">
-                        <i class="bi bi-trash"></i> Entfernen
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.getElementById('dynamicColumns').insertAdjacentHTML('beforeend', template);
-    });
-
-    document.getElementById('dynamicColumns').addEventListener('click', function(e) {
-        if (e.target.closest('.remove-column')) {
-            e.target.closest('.custom-column').remove();
-        }
-    });
-
-    const columnConfigForm = document.getElementById('columnConfigForm');
-    if (columnConfigForm) {
-        columnConfigForm.addEventListener('submit', function(e) {
-            const usedColumns = new Set();
-            
-            document.querySelectorAll('select[name^="columns[required]"]').forEach(select => {
-                if (select.value) {
-                    usedColumns.add(select.value);
-                }
-            });
-
-            let hasError = false;
-            document.querySelectorAll('select[name="columns[custom][excel_column][]"]').forEach(select => {
-                if (select.value && usedColumns.has(select.value)) {
-                    e.preventDefault();
-                    hasError = true;
-                } else if (select.value) {
-                    usedColumns.add(select.value);
-                }
-            });
-
-            if (hasError) {
-                alert('Excel-Spalten dürfen nicht mehrfach verwendet werden!');
-                return false;
             }
         });
     }
 
-    document.getElementById('excelUploadForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData();
-        formData.append('file', document.getElementById('excelFile').files[0]);
+    // Logo-Vorschau
+    function handleFileSelect(inputId, previewId) {
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
         
-        try {
-            const response = await fetch('preview_excel.php', {
-                method: 'POST',
-                body: formData
+        if (input && preview) {
+            input.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (e.target && typeof e.target.result === 'string') {
+                            preview.src = e.target.result;
+                        }
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showPreview(data.preview);
-                updateMappingSuggestions(data.columns);
-            } else {
-                alert('Fehler beim Laden der Vorschau: ' + data.message);
-            }
-        } catch (error) {
-            console.error('Fehler:', error);
-            alert('Fehler beim Laden der Vorschau');
         }
-    });
-
-    function showPreview(previewData) {
-        const previewArea = document.getElementById('previewArea');
-        const previewHeader = document.getElementById('previewHeader');
-        const previewBody = document.getElementById('previewBody');
-        
-        // Header erstellen
-        previewHeader.innerHTML = `
-            <tr>
-                ${previewData.columns.map(col => `<th>${col}</th>`).join('')}
-            </tr>
-        `;
-        
-        // Erste 5 Zeilen als Vorschau
-        previewBody.innerHTML = previewData.rows.slice(0, 5).map(row => `
-            <tr>
-                ${row.map(cell => `<td>${cell}</td>`).join('')}
-            </tr>
-        `).join('');
-        
-        previewArea.classList.remove('d-none');
     }
 
-    function updateMappingSuggestions(excelColumns) {
-        // Automatische Zuordnung der Excel-Spalten basierend auf Namen
-        const selects = document.querySelectorAll('select[name*="excel_column"]');
-        selects.forEach(select => {
-            const columnName = select.closest('tr').querySelector('input[name*="name"]')?.value?.toLowerCase();
-            if (columnName) {
-                const suggestion = excelColumns.findIndex(col => 
-                    col.toLowerCase().includes(columnName)
-                );
-                if (suggestion !== -1) {
-                    select.value = String.fromCharCode(65 + suggestion);
+    handleFileSelect('logoLightInput', 'logoLightPreview');
+    handleFileSelect('logoDarkInput', 'logoDarkPreview');
+
+    // Logo-Upload-Formular
+    const logoForm = document.getElementById('logoForm');
+    if (logoForm) {
+        logoForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('save_logo.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Logos wurden erfolgreich gespeichert');
+                    window.location.reload();
+                } else {
+                    alert('Fehler: ' + data.message);
                 }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Ein Fehler ist aufgetreten');
             }
         });
     }

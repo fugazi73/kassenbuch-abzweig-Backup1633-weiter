@@ -30,7 +30,7 @@ $basePath = $isInSubfolder ? '..' : '.';
     <script src="<?= $basePath ?>/js/navigation.js" defer></script>
     
     <?php if (basename($_SERVER['PHP_SELF']) === 'kassenbuch.php'): ?>
-        <script src="<?= $basePath ?>/js/kassenbuch.js" defer></script>
+        <script src="<?= $basePath ?>/js/kassenbuch/kassenbuch.js" defer></script>
     <?php endif; ?>
     
     <?php if (basename($_SERVER['PHP_SELF']) === 'admin.php'): ?>

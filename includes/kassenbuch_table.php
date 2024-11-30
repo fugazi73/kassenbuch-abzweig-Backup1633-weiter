@@ -1,37 +1,128 @@
 <?php
-// Hole den Kassenstart aus den Settings
-$kassenstart_query = $conn->query("
-    SELECT setting_value as betrag 
-    FROM settings 
-    WHERE setting_key = 'cash_start'
-    LIMIT 1
-");
-$kassenstart = $kassenstart_query->fetch_assoc()['betrag'] ?? 0;
+// Paging-Parameter
+$entries_per_page = 25;
+$current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset = ($current_page - 1) * $entries_per_page;
 
-// Erst alle Einträge chronologisch sortiert holen und Kassenstand berechnen
+// Hole den Kassenstart
+$kassenstart_sql = "SELECT einnahme as betrag 
+                    FROM kassenbuch_eintraege 
+                    WHERE bemerkung = 'Kassenstart' 
+                    ORDER BY datum DESC, id DESC 
+                    LIMIT 1";
+$kassenstart_result = $conn->query($kassenstart_sql);
+$startbetrag = $kassenstart_result->fetch_assoc()['betrag'] ?? 0;
+
+// Hole alle regulären Einträge chronologisch sortiert (neueste zuerst)
 $sql = "SELECT * FROM kassenbuch_eintraege 
         WHERE bemerkung != 'Kassenstart' 
-        ORDER BY datum ASC, id ASC";
-$temp_result = $conn->query($sql);
-$entries = [];
-$laufender_kassenstand = floatval($kassenstart);
+        AND bemerkung != 'Startbetrag'
+        ORDER BY datum DESC, id DESC";
+$result = $conn->query($sql);
+$all_entries = [];
 
-while ($row = $temp_result->fetch_assoc()) {
+// Berechne die Summe aller Salden
+$saldo_summe = 0;
+while ($row = $result->fetch_assoc()) {
     $saldo = $row['einnahme'] - $row['ausgabe'];
-    $laufender_kassenstand += $saldo;
-    $row['kassenstand'] = $laufender_kassenstand;
-    $entries[] = $row;
+    $saldo_summe += $saldo;
+    $all_entries[] = $row;
 }
 
-// Dann die Einträge umdrehen für die Anzeige
-$entries = array_reverse($entries);
+// Berechne die Kassenstände von oben nach unten
+$laufender_kassenstand = $startbetrag + $saldo_summe;
+foreach ($all_entries as &$row) {
+    $row['kassenstand'] = $laufender_kassenstand;
+    $saldo = $row['einnahme'] - $row['ausgabe'];
+    $laufender_kassenstand -= $saldo;
+}
+
+// Hole nur die Einträge für die aktuelle Seite
+$entries = array_slice($all_entries, $offset, $entries_per_page);
+
+// Gesamtanzahl der Einträge
+$total_entries = count($all_entries);
+$total_pages = ceil($total_entries / $entries_per_page);
 
 // Tabellen-Header
 ?>
 <div class="table-responsive">
+    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+    <div class="mb-3">
+        <button type="button" id="massDeleteBtn" class="btn btn-danger" style="display: none;">
+            <i class="bi bi-trash"></i> Ausgewählte Einträge löschen
+        </button>
+    </div>
+    <?php endif; ?>
+
+    <!-- Paging-Navigation oben -->
+    <?php if ($total_pages > 1): ?>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="paging-info">
+            Seite <?= $current_page ?> von <?= $total_pages ?>
+            (<?= $total_entries ?> Einträge)
+        </div>
+        <nav aria-label="Kassenbuch Navigation">
+            <ul class="pagination mb-0">
+                <?php if ($current_page > 1): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1" title="Erste Seite">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $current_page - 1 ?>" title="Vorherige Seite">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php
+                // Seitenzahlen anzeigen
+                $start_page = max(1, $current_page - 2);
+                $end_page = min($total_pages, $current_page + 2);
+
+                if ($start_page > 1) {
+                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+
+                for ($i = $start_page; $i <= $end_page; $i++) {
+                    $active = $i === $current_page ? ' active' : '';
+                    echo '<li class="page-item' . $active . '">
+                            <a class="page-link" href="?page=' . $i . '">' . $i . '</a>
+                          </li>';
+                }
+
+                if ($end_page < $total_pages) {
+                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+                ?>
+
+                <?php if ($current_page < $total_pages): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $current_page + 1 ?>" title="Nächste Seite">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $total_pages ?>" title="Letzte Seite">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
+    </div>
+    <?php endif; ?>
+
     <table class="table table-hover">
         <thead>
             <tr>
+                <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+                <th>
+                    <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <?php endif; ?>
                 <th>Datum</th>
                 <th>Beleg-Nr.</th>
                 <th>Bemerkung</th>
@@ -54,6 +145,11 @@ $entries = array_reverse($entries);
             $saldo = $entry['einnahme'] - $entry['ausgabe'];
         ?>
             <tr>
+                <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+                <td>
+                    <input type="checkbox" class="form-check-input entry-checkbox" data-entry-id="<?= $entry['id'] ?>">
+                </td>
+                <?php endif; ?>
                 <td><?= date('d.m.Y', strtotime($entry['datum'])) ?></td>
                 <td><?= htmlspecialchars($entry['beleg_nr']) ?></td>
                 <td><?= htmlspecialchars($entry['bemerkung']) ?></td>
@@ -62,7 +158,6 @@ $entries = array_reverse($entries);
                 <td class="text-end"><?= number_format($saldo, 2, ',', '.') ?> €</td>
                 <td class="text-end"><?= number_format($entry['kassenstand'], 2, ',', '.') ?> €</td>
                 <?php
-                // Zeige benutzerdefinierte Spalten
                 foreach ($custom_columns as $column) {
                     $column_name = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', $column['name']));
                     $value = $entry[$column_name] ?? '';
@@ -100,4 +195,64 @@ $entries = array_reverse($entries);
         <?php endforeach; ?>
         </tbody>
     </table>
+
+    <!-- Paging-Navigation unten -->
+    <?php if ($total_pages > 1): ?>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="paging-info">
+            Seite <?= $current_page ?> von <?= $total_pages ?>
+            (<?= $total_entries ?> Einträge)
+        </div>
+        <nav aria-label="Kassenbuch Navigation">
+            <ul class="pagination mb-0">
+                <?php if ($current_page > 1): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1" title="Erste Seite">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $current_page - 1 ?>" title="Vorherige Seite">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php
+                // Seitenzahlen anzeigen
+                $start_page = max(1, $current_page - 2);
+                $end_page = min($total_pages, $current_page + 2);
+
+                if ($start_page > 1) {
+                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+
+                for ($i = $start_page; $i <= $end_page; $i++) {
+                    $active = $i === $current_page ? ' active' : '';
+                    echo '<li class="page-item' . $active . '">
+                            <a class="page-link" href="?page=' . $i . '">' . $i . '</a>
+                          </li>';
+                }
+
+                if ($end_page < $total_pages) {
+                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+                ?>
+
+                <?php if ($current_page < $total_pages): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $current_page + 1 ?>" title="Nächste Seite">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $total_pages ?>" title="Letzte Seite">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
+    </div>
+    <?php endif; ?>
 </div> 

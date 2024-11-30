@@ -7,9 +7,6 @@ require_once 'includes/auth.php'; // Prüft nur den Login-Status
 // Setze den Seitentitel
 $page_title = $site_name ? "Kassenbuch - " . htmlspecialchars($site_name) : "Kassenbuch";
 
-// Dann erst den Header einbinden
-require_once 'includes/header.php';
-
 // Startbetrag und laufenden Kassenstand berechnen
 $sql = "SELECT 
     (SELECT COALESCE(einnahme, 0) 
@@ -25,7 +22,7 @@ $kasseninfo = $result->fetch_assoc();
 $startbetrag = $kasseninfo['startbetrag'];
 $current_kassenstand = $kasseninfo['gesamt_kassenstand'];
 
-$page_title = 'Übersicht | Kassenbuch';
+// Header einbinden
 require_once 'includes/header.php';
 ?>
 
@@ -38,12 +35,9 @@ require_once 'includes/header.php';
             </h2>
         </div>
         <div class="col text-end">
-            <div class="kassenstand-display">
-                <span class="kassenstand-label">Kassenstand:</span>
-                <span class="kassenstand-value <?= $current_kassenstand >= 0 ? 'positive' : 'negative' ?>">
-                    <?= number_format($current_kassenstand, 2, ',', '.') ?> €
-                </span>
-            </div>
+            <span class="kassenstand-value <?= $current_kassenstand >= 0 ? 'text-success' : 'text-danger' ?> h4">
+                <?= number_format($current_kassenstand, 2, ',', '.') ?> €
+            </span>
         </div>
     </div>
 
