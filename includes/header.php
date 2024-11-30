@@ -77,6 +77,8 @@ $basePath = $isInSubfolder ? '..' : '.';
                                         <i class="bi bi-people"></i> Benutzerverwaltung</a></li>
                                     <li><a class="dropdown-item" href="<?= $basePath ?>/backup.php">
                                         <i class="bi bi-download"></i> Backup & Restore</a></li>
+                                    <li><a class="dropdown-item" href="<?= $basePath ?>/import_excel.php">
+                                        <i class="bi bi-file-excel"></i> Excel-Import</a></li>
                                     <li><a class="dropdown-item" href="<?= $basePath ?>/settings.php">
                                         <i class="bi bi-gear"></i> Einstellungen</a></li>
                                 </ul>

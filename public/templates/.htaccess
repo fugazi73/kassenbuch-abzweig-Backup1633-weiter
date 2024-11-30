@@ -1,0 +1,14 @@
+# Erlaube Zugriff auf Excel-Dateien
+<FilesMatch "\.(xlsx|xls)$">
+    Order Allow,Deny
+    Allow from all
+    
+    # Setze korrekten MIME-Type
+    Header set Content-Type application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    
+    # Erlaube Download
+    Header set Content-Disposition "attachment"
+</FilesMatch>
+
+# Verbiete Verzeichnisauflistung
+Options -Indexes 

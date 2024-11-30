@@ -102,4 +102,67 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    document.getElementById('excelUploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('file', document.getElementById('excelFile').files[0]);
+        
+        try {
+            const response = await fetch('preview_excel.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showPreview(data.preview);
+                updateMappingSuggestions(data.columns);
+            } else {
+                alert('Fehler beim Laden der Vorschau: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Laden der Vorschau');
+        }
+    });
+
+    function showPreview(previewData) {
+        const previewArea = document.getElementById('previewArea');
+        const previewHeader = document.getElementById('previewHeader');
+        const previewBody = document.getElementById('previewBody');
+        
+        // Header erstellen
+        previewHeader.innerHTML = `
+            <tr>
+                ${previewData.columns.map(col => `<th>${col}</th>`).join('')}
+            </tr>
+        `;
+        
+        // Erste 5 Zeilen als Vorschau
+        previewBody.innerHTML = previewData.rows.slice(0, 5).map(row => `
+            <tr>
+                ${row.map(cell => `<td>${cell}</td>`).join('')}
+            </tr>
+        `).join('');
+        
+        previewArea.classList.remove('d-none');
+    }
+
+    function updateMappingSuggestions(excelColumns) {
+        // Automatische Zuordnung der Excel-Spalten basierend auf Namen
+        const selects = document.querySelectorAll('select[name*="excel_column"]');
+        selects.forEach(select => {
+            const columnName = select.closest('tr').querySelector('input[name*="name"]')?.value?.toLowerCase();
+            if (columnName) {
+                const suggestion = excelColumns.findIndex(col => 
+                    col.toLowerCase().includes(columnName)
+                );
+                if (suggestion !== -1) {
+                    select.value = String.fromCharCode(65 + suggestion);
+                }
+            }
+        });
+    }
 }); 

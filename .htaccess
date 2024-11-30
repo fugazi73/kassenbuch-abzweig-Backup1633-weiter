@@ -1,0 +1,13 @@
+# Erlaube Zugriff auf public Verzeichnis
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # Erlaube direkten Zugriff auf Dateien im public Verzeichnis
+    RewriteRule ^public/ - [L]
+    
+    # Alle anderen Anfragen zur index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.php [L]
+</IfModule> 

@@ -1,0 +1,18 @@
+.preview-table {
+    font-size: 0.875rem;
+}
+
+.preview-table th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+}
+
+#previewArea {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.mapping-suggestion {
+    background-color: #e7f3ff;
+} 
