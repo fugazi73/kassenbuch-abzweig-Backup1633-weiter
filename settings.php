@@ -1,29 +1,30 @@
 <?php
-session_start();
-require_once 'config.php';
+require_once 'includes/init.php';
 require_once 'functions.php';
 
-// Nur Admin-Zugriff erlauben
-if (!is_admin()) {
-    handle_forbidden();
+// Prüfe Berechtigung
+if (!is_chef() && !is_admin()) {
+    header('Location: error.php?message=Keine Berechtigung');
+    exit;
 }
 
-// Einstellungen aus der Datenbank laden
+// Hole aktuelle Einstellungen aus der Datenbank
 $settings = [];
 $result = $conn->query("SELECT setting_key, setting_value FROM settings");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $settings[$row['setting_key']] = $row['setting_value'];
-    }
+while ($row = $result->fetch_assoc()) {
+    $settings[$row['setting_key']] = $row['setting_value'];
 }
 
-// Grundeinstellungen
-$site_name = $settings['site_name'] ?? 'Kassenbuch';
-$page_title = "Einstellungen - " . htmlspecialchars($site_name);
-
-// Startbetrag-Informationen abrufen
-$startbetrag_query = $conn->query("SELECT datum, einnahme as betrag FROM kassenbuch_eintraege WHERE bemerkung = 'Kassenstart' ORDER BY datum DESC LIMIT 1");
-$startbetrag_info = $startbetrag_query->fetch_assoc();
+// Hole das letzte Update-Datum des Kassenstarts
+$datum_query = $conn->query("
+    SELECT DATE_FORMAT(updated_at, '%d.%m.%Y') as datum 
+    FROM settings 
+    WHERE setting_key = 'kassenstart' 
+    LIMIT 1
+");
+$datum_info = $datum_query->fetch_assoc();
+$kassenstart_datum = $datum_info['datum'] ?? date('d.m.Y');
+$kassenstart_betrag = $settings['kassenstart'] ?? '0';
 
 // Header einbinden
 require_once 'includes/header.php';
@@ -31,350 +32,277 @@ require_once 'includes/header.php';
 
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-12 col-xl-10">
-            <h2 class="settings-title mb-4">
-                <i class="bi bi-gear"></i> Einstellungen
-            </h2>
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h1 class="card-title mb-4">
+                        <i class="bi bi-gear-fill text-primary"></i> Einstellungen
+                    </h1>
 
-            <!-- Kasseneinstellungen -->
-            <div class="settings-section mb-4">
-                <h5 class="settings-header">
-                    <i class="bi bi-cash"></i> Kasseneinstellungen
-                </h5>
-                <div class="settings-content">
-                    <div class="kassenstart-section">
-                        <h6>Kassenstart</h6>
-                        
-                        <?php if ($startbetrag_info): ?>
-                        <div class="startbetrag-info">
-                            Aktueller Startbetrag: <?= number_format($startbetrag_info['betrag'], 2, ',', '.') ?> € (<?= date('d.m.Y', strtotime($startbetrag_info['datum'])) ?>)
-                        </div>
-                        <?php endif; ?>
-                        
-                        <div class="row g-3 mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Datum</label>
-                                <input type="date" class="form-control" id="startdatum" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Betrag (€)</label>
-                                <input type="number" step="0.01" class="form-control" id="startbetrag" required>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-primary" onclick="saveKassenstart()">
-                                <i class="bi bi-save"></i> Speichern
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Logo Einstellungen -->
-            <div class="settings-section mb-4">
-                <h5 class="settings-header">
-                    <i class="bi bi-image"></i> Logo Einstellungen
-                </h5>
-                <div class="settings-content">
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <h6 class="mb-3">Logo (Hell)</h6>
-                            <div class="logo-preview mb-3">
-                                <img src="<?= $logo_light ?>" 
-                                     alt="Logo (Hell)" 
-                                     id="logoLightPreview"
-                                     class="img-fluid"
-                                     style="max-height: 100px; width: auto;"
-                                     onerror="this.src='images/logo_light.png'">
-                            </div>
-                            <div class="logo-upload">
-                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('logoLightInput').click()">
-                                    <i class="bi bi-upload"></i> Datei auswählen
-                                </button>
-                                <span class="ms-2 text-muted">Keine ausgewählt</span>
-                                <input type="file" class="d-none" id="logoLightInput" name="logo_light" accept="image/*">
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <h6 class="mb-3">Logo (Dunkel)</h6>
-                            <div class="logo-preview mb-3">
-                                <img src="<?= $logo_dark ?>" 
-                                     alt="Logo (Dunkel)" 
-                                     id="logoDarkPreview"
-                                     class="img-fluid"
-                                     style="max-height: 100px; width: auto;"
-                                     onerror="this.src='images/logo_dark.png'">
-                            </div>
-                            <div class="logo-upload">
-                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('logoDarkInput').click()">
-                                    <i class="bi bi-upload"></i> Datei auswählen
-                                </button>
-                                <span class="ms-2 text-muted">Keine ausgewählt</span>
-                                <input type="file" class="d-none" id="logoDarkInput" name="logo_dark" accept="image/*">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-primary" onclick="saveLogo()">
-                            <i class="bi bi-save"></i> Logos speichern
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Weitere Einstellungen -->
-            <div class="settings-section">
-                <h5 class="settings-header">
-                    <i class="bi bi-gear"></i> Weitere Einstellungen
-                </h5>
-                <div class="settings-content">
-                    <form id="siteSettingsForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Seitenname</label>
-                                    <input type="text" class="form-control" id="siteName" name="site_name" 
-                                           value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>" required>
+                    <!-- Kasseneinstellungen -->
+                    <div class="settings-section mb-5">
+                        <h3 class="border-bottom pb-2 mb-4">
+                            <i class="bi bi-cash text-success"></i> Kasseneinstellungen
+                        </h3>
+                        <div class="settings-content">
+                            <div class="mb-4">
+                                <h5 class="text-primary mb-3">Kassenstart</h5>
+                                <div class="alert alert-info shadow-sm">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Aktueller Startbetrag: <strong><?= number_format(floatval($kassenstart_betrag), 2, ',', '.') ?> €</strong> 
+                                    <br>
+                                    <small class="text-muted">Stand: <?= $kassenstart_datum ?></small>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="kassenstart_datum" class="form-label">Startdatum</label>
+                                        <input type="date" class="form-control" id="kassenstart_datum" 
+                                               value="<?= date('Y-m-d') ?>" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="kassenstart" class="form-label">Startbetrag</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="kassenstart" 
+                                                   value="<?= $kassenstart_betrag ?>" 
+                                                   step="0.01" min="0" required>
+                                            <span class="input-group-text">€</span>
+                                            <button class="btn btn-primary" id="saveKassenstartBtn">
+                                                <i class="bi bi-save"></i> Speichern
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Dieser Betrag wird als Startbetrag im Kassenbuch verwendet.
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Speichern
-                            </button>
+                    </div>
+
+                    <!-- Logo Einstellungen -->
+                    <div class="settings-section mb-5">
+                        <h3 class="border-bottom pb-2 mb-4">
+                            <i class="bi bi-image text-info"></i> Logo Einstellungen
+                        </h3>
+                        <div class="settings-content">
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Logo (Hell)</h5>
+                                            <div class="logo-preview mb-3 text-center p-3 bg-light rounded">
+                                                <img src="<?= $settings['logo_light'] ?? 'images/logo_light.png' ?>" 
+                                                     alt="Logo (Hell)" 
+                                                     id="logoLightPreview"
+                                                     class="img-fluid"
+                                                     style="max-height: 100px; width: auto;">
+                                            </div>
+                                            <div class="logo-upload text-center">
+                                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('logoLightInput').click()">
+                                                    <i class="bi bi-upload"></i> Datei auswählen
+                                                </button>
+                                                <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
+                                                <input type="file" class="d-none" id="logoLightInput" accept="image/*">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Logo (Dunkel)</h5>
+                                            <div class="logo-preview mb-3 text-center p-3 bg-dark rounded">
+                                                <img src="<?= $settings['logo_dark'] ?? 'images/logo_dark.png' ?>" 
+                                                     alt="Logo (Dunkel)" 
+                                                     id="logoDarkPreview"
+                                                     class="img-fluid"
+                                                     style="max-height: 100px; width: auto;">
+                                            </div>
+                                            <div class="logo-upload text-center">
+                                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('logoDarkInput').click()">
+                                                    <i class="bi bi-upload"></i> Datei auswählen
+                                                </button>
+                                                <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
+                                                <input type="file" class="d-none" id="logoDarkInput" accept="image/*">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-primary" onclick="saveLogo()">
+                                    <i class="bi bi-save"></i> Logos speichern
+                                </button>
+                            </div>
                         </div>
-                    </form>
+                    </div>
+
+                    <!-- Weitere Einstellungen -->
+                    <div class="settings-section">
+                        <h3 class="border-bottom pb-2 mb-4">
+                            <i class="bi bi-sliders text-warning"></i> Weitere Einstellungen
+                        </h3>
+                        <div class="settings-content">
+                            <form id="siteSettingsForm" class="card">
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="siteName" class="form-label">Seitenname</label>
+                                        <input type="text" class="form-control" id="siteName" name="site_name" 
+                                               value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>" required>
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Dieser Name wird im Browser-Tab und der Navigation angezeigt.
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Speichern
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.settings-title {
-    color: var(--text-color);
-    font-size: 1.5rem;
-    font-weight: 500;
-}
-
-.settings-section {
-    background: var(--surface-card);
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.settings-header {
-    background: var(--surface-section);
-    padding: 1rem;
-    margin: 0;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.settings-content {
-    padding: 1.5rem;
-}
-
-.kassenstart-section h6 {
-    margin-bottom: 1rem;
-    color: var(--text-color);
-}
-
-.startbetrag-info {
-    background: var(--primary-dark);
-    color: var(--text-color);
-    padding: 1rem;
-    border-radius: 0.25rem;
-    margin-bottom: 1rem;
-}
-
-.form-control {
-    background: var(--surface-hover);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    height: 40px;
-}
-
-.form-control:focus {
-    background: var(--surface-hover);
-    border-color: var(--primary-color);
-    color: var(--text-color);
-    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
-}
-
-.btn-primary {
-    background: var(--primary-color);
-    border: none;
-    padding: 0.5rem 1rem;
-}
-
-.btn-primary:hover {
-    background: var(--primary-dark);
-}
-
-.logo-preview {
-    background: var(--surface-hover);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    text-align: center;
-    min-height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.logo-preview img {
-    max-width: 200px;
-    max-height: 200px;
-    width: auto;
-    height: auto;
-}
-
-.btn-secondary {
-    background: var(--surface-hover);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-}
-
-.btn-secondary:hover {
-    background: var(--surface-hover-darker);
-    border-color: var(--border-color-darker);
-}
-</style>
-
 <script>
-// Vorschau für Logo-Upload
-function updateLogoPreview(input, previewId) {
-    const preview = document.getElementById(previewId);
-    const file = input.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-        
-        // Update Dateiname-Anzeige
-        const span = input.parentElement.querySelector('span');
-        if (span) {
-            span.textContent = file.name;
-        }
-    }
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // Kassenstart Speichern
+    const saveButton = document.getElementById('saveKassenstartBtn');
+    if (saveButton) {
+        saveButton.addEventListener('click', async function() {
+            const betrag = document.getElementById('kassenstart').value;
+            const datum = document.getElementById('kassenstart_datum').value;
 
-// Event-Listener für Logo-Uploads
-document.getElementById('logoLightInput').addEventListener('change', function() {
-    updateLogoPreview(this, 'logoLightPreview');
-});
+            if (!betrag || !datum) {
+                alert('Bitte geben Sie einen Betrag und ein Datum ein.');
+                return;
+            }
 
-document.getElementById('logoDarkInput').addEventListener('change', function() {
-    updateLogoPreview(this, 'logoDarkPreview');
-});
+            try {
+                const response = await fetch('save_kassenstart.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        betrag: parseFloat(betrag),
+                        datum: datum
+                    })
+                });
 
-async function saveLogo() {
-    try {
-        const formData = new FormData();
-        const lightInput = document.getElementById('logoLightInput');
-        const darkInput = document.getElementById('logoDarkInput');
-        
-        if (lightInput.files[0]) {
-            formData.append('logo_light', lightInput.files[0]);
-        }
-        
-        if (darkInput.files[0]) {
-            formData.append('logo_dark', darkInput.files[0]);
-        }
-
-        if (!lightInput.files[0] && !darkInput.files[0]) {
-            alert('Bitte wählen Sie mindestens ein Logo aus.');
-            return;
-        }
-
-        const response = await fetch('save_logo.php', {
-            method: 'POST',
-            body: formData
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Kassenstart wurde erfolgreich gespeichert.');
+                    location.reload();
+                } else {
+                    throw new Error(data.message || 'Fehler beim Speichern des Kassenstarts');
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert('Fehler beim Speichern: ' + error.message);
+            }
         });
+    }
 
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Logos wurden erfolgreich gespeichert');
-            location.reload();
-        } else {
-            throw new Error(result.message || 'Fehler beim Speichern der Logos');
+    // Logo-Upload Vorschau
+    function updateLogoPreview(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            const fileNameDiv = input.parentElement.querySelector('.file-name');
+            if (fileNameDiv) {
+                fileNameDiv.textContent = file.name;
+            }
         }
-    } catch (error) {
-        console.error('Fehler:', error);
-        alert('Fehler beim Speichern der Logos: ' + error.message);
-    }
-}
-
-// Kassenstart speichern
-async function saveKassenstart() {
-    const datum = document.getElementById('startdatum').value;
-    const betrag = document.getElementById('startbetrag').value;
-
-    if (!datum || !betrag) {
-        alert('Bitte füllen Sie alle Felder aus.');
-        return;
     }
 
-    try {
-        const response = await fetch('save_kassenstart.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                datum: datum,
-                betrag: parseFloat(betrag)
-            })
-        });
+    // Logo-Upload Event-Listener
+    document.getElementById('logoLightInput').addEventListener('change', function() {
+        updateLogoPreview(this, 'logoLightPreview');
+    });
 
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Kassenstart wurde erfolgreich gespeichert');
-            location.reload();
-        } else {
-            throw new Error(result.message || 'Fehler beim Speichern des Kassenstarts');
+    document.getElementById('logoDarkInput').addEventListener('change', function() {
+        updateLogoPreview(this, 'logoDarkPreview');
+    });
+
+    // Logo speichern
+    window.saveLogo = async function() {
+        try {
+            const formData = new FormData();
+            const lightInput = document.getElementById('logoLightInput');
+            const darkInput = document.getElementById('logoDarkInput');
+            
+            if (lightInput.files[0]) {
+                formData.append('logo_light', lightInput.files[0]);
+            }
+            
+            if (darkInput.files[0]) {
+                formData.append('logo_dark', darkInput.files[0]);
+            }
+
+            if (!lightInput.files[0] && !darkInput.files[0]) {
+                alert('Bitte wählen Sie mindestens ein Logo aus.');
+                return;
+            }
+
+            const response = await fetch('save_logo.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                location.reload();
+            } else {
+                throw new Error(result.message || 'Fehler beim Speichern der Logos');
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern der Logos: ' + error.message);
         }
-    } catch (error) {
-        console.error('Fehler:', error);
-        alert('Fehler beim Speichern des Kassenstarts: ' + error.message);
-    }
-}
+    };
 
-// Weitere Einstellungen speichern
-document.getElementById('siteSettingsForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const siteName = document.getElementById('siteName').value;
-    
-    try {
-        const response = await fetch('save_site_settings.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                site_name: siteName
-            })
-        });
-
-        const result = await response.json();
+    // Seitenname speichern
+    document.getElementById('siteSettingsForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        if (result.success) {
-            alert('Einstellungen wurden erfolgreich gespeichert');
-            location.reload();
-        } else {
-            throw new Error(result.message || 'Fehler beim Speichern der Einstellungen');
+        const siteName = document.getElementById('siteName').value;
+        
+        try {
+            const response = await fetch('save_site_settings.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    site_name: siteName
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                location.reload();
+            } else {
+                throw new Error(result.message || 'Fehler beim Speichern der Einstellungen');
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Speichern der Einstellungen: ' + error.message);
         }
-    } catch (error) {
-        console.error('Fehler:', error);
-        alert('Fehler beim Speichern der Einstellungen: ' + error.message);
-    }
+    });
 });
 </script>
 

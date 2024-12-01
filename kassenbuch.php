@@ -22,6 +22,31 @@ $kasseninfo = $result->fetch_assoc();
 $startbetrag = $kasseninfo['startbetrag'];
 $current_kassenstand = $kasseninfo['gesamt_kassenstand'];
 
+// Hole Kassenstart-Eintrag
+$kassenstart_query = $conn->query("
+    SELECT einnahme as betrag, DATE_FORMAT(datum, '%d.%m.%Y') as datum 
+    FROM kassenbuch_eintraege 
+    WHERE bemerkung = 'Kassenstart' 
+    ORDER BY datum DESC 
+    LIMIT 1
+");
+$kassenstart = $kassenstart_query->fetch_assoc();
+
+// Tabelle wird hier eingefügt
+$sql = "SELECT * FROM kassenbuch_eintraege WHERE 1=1";
+
+// Nur Admins sehen den Kassenstart-Eintrag
+if (!is_admin() && !is_chef()) {
+    $sql .= " AND bemerkung != 'Kassenstart'";
+}
+
+// Weitere Filter
+if (isset($_GET['von_datum']) && !empty($_GET['von_datum'])) {
+    $sql .= " AND datum >= ?";
+    $params[] = $_GET['von_datum'];
+    $types .= "s";
+}
+
 // Header einbinden
 require_once 'includes/header.php';
 ?>

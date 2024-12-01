@@ -1,7 +1,28 @@
-.main-footer {
-    border-top: 1px solid rgba(0,0,0,.1);
-    background-color: #f8f9fa;
-    padding: 0.5rem 0;
+.footer {
+    background-color: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+    width: 100%;
+}
+
+.footer a:hover {
+    color: var(--bs-primary) !important;
+}
+
+/* Ensure the footer stays at the bottom */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .footer {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
 }
 
 .footer-brand {

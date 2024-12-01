@@ -1,91 +1,91 @@
 <?php
 session_start();
-require_once 'config.php';
+require_once 'includes/init.php';
 require_once 'functions.php';
 
-// Nur Admin-Zugriff erlauben
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-    die(json_encode([
-        'success' => false,
-        'message' => 'Nur Administratoren können den Kassenstart ändern.'
-    ]));
+// Prüfe Berechtigung
+if (!is_chef() && !is_admin()) {
+    http_response_code(403);
+    die(json_encode(['success' => false, 'message' => 'Keine Berechtigung']));
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    try {
-        $conn->begin_transaction();
+// Hole und validiere die Daten
+$data = json_decode(file_get_contents('php://input'), true);
+if (!isset($data['betrag']) || !isset($data['datum'])) {
+    http_response_code(400);
+    die(json_encode(['success' => false, 'message' => 'Betrag und Datum fehlen']));
+}
 
-        $datum = $_POST['datum'];
-        $betrag = floatval(str_replace(',', '.', $_POST['betrag']));
+$betrag = floatval($data['betrag']);
+$datum = $data['datum'];
 
-        // 1. Speichere in settings Tabelle
-        $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) 
-                               VALUES ('cash_start', ?) 
-                               ON DUPLICATE KEY UPDATE setting_value = ?");
-        $stmt->bind_param("ss", $betrag, $betrag);
-        
-        if (!$stmt->execute()) {
-            throw new Exception("Fehler beim Speichern des Kassenstarts in Settings");
-        }
+if ($betrag < 0) {
+    http_response_code(400);
+    die(json_encode(['success' => false, 'message' => 'Betrag muss positiv sein']));
+}
 
-        // 2. Lösche alten Kassenstart falls vorhanden
-        $conn->query("DELETE FROM kassenbuch_eintraege WHERE bemerkung = 'Kassenstart'");
+try {
+    // Starte Transaktion
+    $conn->begin_transaction();
 
-        // 3. Erstelle neuen Kassenstart-Eintrag
-        $stmt = $conn->prepare("INSERT INTO kassenbuch_eintraege 
-            (datum, bemerkung, einnahme, ausgabe, kassenstand) 
-            VALUES (?, 'Kassenstart', ?, 0, ?)");
-        
-        $stmt->bind_param("sdd", $datum, $betrag, $betrag);
-        
-        if (!$stmt->execute()) {
-            throw new Exception("Fehler beim Speichern des Kassenstarts im Kassenbuch");
-        }
+    // 1. Speichere in den Einstellungen
+    $stmt = $conn->prepare("
+        INSERT INTO settings (setting_key, setting_value, updated_at) 
+        VALUES ('kassenstart', ?, NOW()) 
+        ON DUPLICATE KEY UPDATE 
+            setting_value = ?,
+            updated_at = NOW()
+    ");
+    $betragStr = number_format($betrag, 2, '.', '');
+    $stmt->bind_param("ss", $betragStr, $betragStr);
+    $stmt->execute();
 
-        // 4. Hole alle Einträge nach dem Kassenstart
-        $stmt = $conn->prepare("SELECT id, einnahme, ausgabe 
-                               FROM kassenbuch_eintraege 
-                               WHERE datum >= ? 
-                               ORDER BY datum ASC, id ASC");
-        $stmt->bind_param("s", $datum);
-        $stmt->execute();
-        $result = $stmt->get_result();
+    // 2. Lösche alten Kassenstart-Eintrag
+    $stmt = $conn->prepare("DELETE FROM kassenbuch_eintraege WHERE bemerkung = 'Kassenstart'");
+    $stmt->execute();
 
-        // 5. Berechne neue Kassenstände
-        $laufender_kassenstand = $betrag;
-        $updates = [];
-        
-        while ($row = $result->fetch_assoc()) {
-            if ($row['id'] != $stmt->insert_id) { // Überspringe den Kassenstart-Eintrag
-                $laufender_kassenstand += $row['einnahme'] - $row['ausgabe'];
-                $updates[] = "WHEN " . $row['id'] . " THEN " . $laufender_kassenstand;
-            }
-        }
+    // 3. Füge neuen Kassenstart ein
+    $stmt = $conn->prepare("
+        INSERT INTO kassenbuch_eintraege 
+        (datum, bemerkung, einnahme, ausgabe, kassenstand) 
+        VALUES (?, 'Kassenstart', ?, 0, ?)
+    ");
+    $stmt->bind_param("sdd", $datum, $betrag, $betrag);
+    $stmt->execute();
 
-        // 6. Führe Update aus
-        if (!empty($updates)) {
-            $sql = "UPDATE kassenbuch_eintraege 
-                    SET kassenstand = CASE id 
-                        " . implode("\n", $updates) . "
-                    END 
-                    WHERE datum >= ? AND bemerkung != 'Kassenstart'";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("s", $datum);
-            $stmt->execute();
-        }
+    // 4. Aktualisiere alle Kassenstände
+    $sql = "
+        UPDATE kassenbuch_eintraege 
+        SET kassenstand = (
+            SELECT running_total
+            FROM (
+                SELECT 
+                    id,
+                    (
+                        SELECT SUM(CASE 
+                            WHEN bemerkung = 'Kassenstart' THEN einnahme
+                            ELSE einnahme - ausgabe 
+                        END)
+                        FROM kassenbuch_eintraege AS t2
+                        WHERE t2.datum <= t1.datum
+                        AND (t2.datum < t1.datum OR t2.id <= t1.id)
+                    ) as running_total
+                FROM kassenbuch_eintraege AS t1
+            ) AS subquery
+            WHERE subquery.id = kassenbuch_eintraege.id
+        )
+        WHERE bemerkung != 'Kassenstart'
+        ORDER BY datum ASC, id ASC
+    ";
+    $conn->query($sql);
 
-        $conn->commit();
-        echo json_encode([
-            'success' => true,
-            'message' => 'Kassenstart wurde erfolgreich gespeichert'
-        ]);
+    // Commit Transaktion
+    $conn->commit();
 
-    } catch (Exception $e) {
-        $conn->rollback();
-        echo json_encode([
-            'success' => false,
-            'message' => $e->getMessage()
-        ]);
-    }
+    echo json_encode(['success' => true, 'message' => 'Kassenstart wurde erfolgreich gespeichert']);
+} catch (Exception $e) {
+    // Rollback bei Fehler
+    $conn->rollback();
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Datenbankfehler: ' . $e->getMessage()]);
 } 

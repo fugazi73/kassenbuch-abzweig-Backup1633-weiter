@@ -18,37 +18,45 @@ try {
 }
 ?>
 
-<footer class="main-footer mt-auto">
+    </div><!-- Ende .container von main -->
+</main><!-- Ende main -->
+
+<footer class="footer mt-auto py-3 bg-body-tertiary border-top">
     <div class="container">
-        <div class="row align-items-center py-2">
+        <div class="row align-items-center">
             <div class="col-md-6">
-                <div class="footer-brand d-flex align-items-center">
-                    <img src="<?= $logo_light ?>" alt="Logo Light" class="footer-logo me-2 theme-light">
-                    <img src="<?= $logo_dark ?>" alt="Logo Dark" class="footer-logo me-2 theme-dark">
-                    <span class="text-muted"><?= htmlspecialchars($site_name) ?></span>
+                <div class="d-flex align-items-center">
+                    <img src="<?= $basePath ?>/<?= $savedTheme === 'dark' ? $logo_dark : $logo_light ?>" 
+                         alt="Logo" height="24" class="me-2">
+                    <span class="text-body-secondary">
+                        &copy; <?= date('Y') ?> <?= COMPANY_NAME ?>
+                        <span class="ms-2">Version <?= APP_VERSION ?></span>
+                    </span>
                 </div>
             </div>
-            <div class="col-md-6 text-end">
-                <div class="footer-info d-flex align-items-center justify-content-end">
-                    <span class="text-muted me-3">Version 1.0</span>
-                    <div class="footer-icons">
-                        <a href="#" class="text-muted me-2" title="GitHub">
-                            <i class="bi bi-github"></i>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-md-end align-items-center gap-3">
+                    <a href="<?= $basePath ?>/help/about.php" class="text-body-secondary text-decoration-none">
+                        <i class="bi bi-info-circle"></i> Über uns
+                    </a>
+                    <a href="<?= $basePath ?>/help/manual.php" class="text-body-secondary text-decoration-none">
+                        <i class="bi bi-book"></i> Handbuch
+                    </a>
+                    <?php if ($settings['show_datenschutz'] === '1'): ?>
+                        <a href="<?= $basePath ?>/datenschutz.php" class="text-body-secondary text-decoration-none">
+                            <i class="bi bi-shield-check"></i> Datenschutz
                         </a>
-                        <a href="#" class="text-muted me-2" title="Discord">
-                            <i class="bi bi-discord"></i>
+                    <?php endif; ?>
+                    <?php if ($settings['show_impressum'] === '1'): ?>
+                        <a href="<?= $basePath ?>/impressum.php" class="text-body-secondary text-decoration-none">
+                            <i class="bi bi-file-text"></i> Impressum
                         </a>
-                        <a href="#" class="text-muted" title="Info">
-                            <i class="bi bi-info-circle"></i>
-                        </a>
-                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 </footer>
-
-<!-- Alle JavaScript-Dateien wurden bereits im Header geladen -->
 
 </body>
 </html> 

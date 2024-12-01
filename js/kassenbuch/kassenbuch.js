@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Schnelleingabe-Formular
+    const quickEntryForm = document.getElementById('quickEntryForm');
+    if (quickEntryForm) {
+        quickEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveEntry();
+        });
+    }
+
     // Checkbox Funktionalität
     const selectAllCheckbox = document.getElementById('selectAll');
     const entryCheckboxes = document.querySelectorAll('.entry-checkbox');
@@ -115,7 +124,7 @@ function updateMassDeleteButton() {
 }
 
 // Speicherfunktion
-function saveEntry() {
+async function saveEntry() {
     const datum = document.getElementById('datum').value;
     const bemerkung = document.getElementById('bemerkung').value;
     const einnahme = document.getElementById('einnahme').value || '0';
@@ -126,30 +135,34 @@ function saveEntry() {
         return;
     }
 
-    fetch('save_entry.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            datum: datum,
-            bemerkung: bemerkung,
-            einnahme: parseFloat(einnahme),
-            ausgabe: parseFloat(ausgabe)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch('save_entry.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                datum: datum,
+                bemerkung: bemerkung,
+                einnahme: parseFloat(einnahme),
+                ausgabe: parseFloat(ausgabe)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Netzwerkfehler beim Speichern');
+        }
+
+        const data = await response.json();
         if (data.success) {
             location.reload();
         } else {
-            alert('Fehler beim Speichern: ' + data.message);
+            throw new Error(data.message || 'Fehler beim Speichern');
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Speichern des Eintrags');
-    });
+        alert('Fehler beim Speichern: ' + error.message);
+    }
 }
 
 // Bearbeiten Funktion
