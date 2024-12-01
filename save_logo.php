@@ -4,69 +4,96 @@ require_once 'config.php';
 require_once 'functions.php';
 
 // Nur Admin-Zugriff erlauben
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+if (!is_admin()) {
+    header('Content-Type: application/json');
     die(json_encode([
         'success' => false,
         'message' => 'Nur Administratoren können Logos ändern.'
     ]));
 }
 
+header('Content-Type: application/json');
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
-        $conn->begin_transaction();
-        $success = false;
-
-        // Upload-Verzeichnis erstellen falls nicht vorhanden
-        $uploadDir = 'uploads/';
+        $uploadDir = 'images/';
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
 
+        $success = false;
+        $messages = [];
+
         // Helles Logo verarbeiten
         if (isset($_FILES['logo_light']) && $_FILES['logo_light']['error'] === UPLOAD_ERR_OK) {
-            $fileName = 'logo_light.' . pathinfo($_FILES['logo_light']['name'], PATHINFO_EXTENSION);
+            $fileInfo = pathinfo($_FILES['logo_light']['name']);
+            $extension = strtolower($fileInfo['extension']);
+            
+            // Prüfe erlaubte Dateitypen
+            if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                throw new Exception('Nur JPG, PNG und GIF Dateien sind erlaubt.');
+            }
+
+            $fileName = 'logo_light.' . $extension;
             $uploadPath = $uploadDir . $fileName;
             
             if (move_uploaded_file($_FILES['logo_light']['tmp_name'], $uploadPath)) {
-                $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) 
-                                      VALUES ('logo_light', ?) 
-                                      ON DUPLICATE KEY UPDATE setting_value = ?");
+                // Speichere den Pfad in der Datenbank
+                $stmt = $conn->prepare("REPLACE INTO settings (setting_key, setting_value) VALUES ('logo_light', ?)");
                 $relativePath = $uploadPath;
-                $stmt->bind_param("ss", $relativePath, $relativePath);
+                $stmt->bind_param("s", $relativePath);
                 $stmt->execute();
                 $success = true;
+                $messages[] = 'Helles Logo wurde gespeichert.';
             }
         }
 
         // Dunkles Logo verarbeiten
         if (isset($_FILES['logo_dark']) && $_FILES['logo_dark']['error'] === UPLOAD_ERR_OK) {
-            $fileName = 'logo_dark.' . pathinfo($_FILES['logo_dark']['name'], PATHINFO_EXTENSION);
+            $fileInfo = pathinfo($_FILES['logo_dark']['name']);
+            $extension = strtolower($fileInfo['extension']);
+            
+            // Prüfe erlaubte Dateitypen
+            if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                throw new Exception('Nur JPG, PNG und GIF Dateien sind erlaubt.');
+            }
+
+            $fileName = 'logo_dark.' . $extension;
             $uploadPath = $uploadDir . $fileName;
             
             if (move_uploaded_file($_FILES['logo_dark']['tmp_name'], $uploadPath)) {
-                $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) 
-                                      VALUES ('logo_dark', ?) 
-                                      ON DUPLICATE KEY UPDATE setting_value = ?");
+                // Speichere den Pfad in der Datenbank
+                $stmt = $conn->prepare("REPLACE INTO settings (setting_key, setting_value) VALUES ('logo_dark', ?)");
                 $relativePath = $uploadPath;
-                $stmt->bind_param("ss", $relativePath, $relativePath);
+                $stmt->bind_param("s", $relativePath);
                 $stmt->execute();
                 $success = true;
+                $messages[] = 'Dunkles Logo wurde gespeichert.';
             }
         }
 
-        $conn->commit();
-        
-        echo json_encode([
-            'success' => $success,
-            'message' => $success ? 'Logos wurden erfolgreich gespeichert' : 'Keine Änderungen vorgenommen'
-        ]);
+        if ($success) {
+            echo json_encode([
+                'success' => true,
+                'message' => implode(' ', $messages)
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Keine Änderungen vorgenommen.'
+            ]);
+        }
 
     } catch (Exception $e) {
-        $conn->rollback();
         error_log("Fehler beim Logo-Upload: " . $e->getMessage());
         echo json_encode([
             'success' => false,
             'message' => 'Fehler beim Speichern der Logos: ' . $e->getMessage()
         ]);
     }
+} else {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Ungültige Anfrage.'
+    ]);
 } 

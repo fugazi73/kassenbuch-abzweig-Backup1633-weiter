@@ -80,14 +80,16 @@ require_once 'includes/header.php';
                         <div class="col-md-6 mb-4">
                             <h6 class="mb-3">Logo (Hell)</h6>
                             <div class="logo-preview mb-3">
-                                <img src="<?= htmlspecialchars($settings['logo_light'] ?? 'images/logo_light.png') ?>" 
+                                <img src="<?= $logo_light ?>" 
                                      alt="Logo (Hell)" 
                                      id="logoLightPreview"
-                                     class="img-fluid">
+                                     class="img-fluid"
+                                     style="max-height: 100px; width: auto;"
+                                     onerror="this.src='images/logo_light.png'">
                             </div>
                             <div class="logo-upload">
                                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('logoLightInput').click()">
-                                    Datei auswählen
+                                    <i class="bi bi-upload"></i> Datei auswählen
                                 </button>
                                 <span class="ms-2 text-muted">Keine ausgewählt</span>
                                 <input type="file" class="d-none" id="logoLightInput" name="logo_light" accept="image/*">
@@ -96,14 +98,16 @@ require_once 'includes/header.php';
                         <div class="col-md-6 mb-4">
                             <h6 class="mb-3">Logo (Dunkel)</h6>
                             <div class="logo-preview mb-3">
-                                <img src="<?= htmlspecialchars($settings['logo_dark'] ?? 'images/logo_dark.png') ?>" 
+                                <img src="<?= $logo_dark ?>" 
                                      alt="Logo (Dunkel)" 
                                      id="logoDarkPreview"
-                                     class="img-fluid">
+                                     class="img-fluid"
+                                     style="max-height: 100px; width: auto;"
+                                     onerror="this.src='images/logo_dark.png'">
                             </div>
                             <div class="logo-upload">
                                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('logoDarkInput').click()">
-                                    Datei auswählen
+                                    <i class="bi bi-upload"></i> Datei auswählen
                                 </button>
                                 <span class="ms-2 text-muted">Keine ausgewählt</span>
                                 <input type="file" class="d-none" id="logoDarkInput" name="logo_dark" accept="image/*">
@@ -240,75 +244,137 @@ require_once 'includes/header.php';
 </style>
 
 <script>
-function saveLogo() {
-    const formData = new FormData();
-    const lightInput = document.getElementById('logoLightInput');
-    const darkInput = document.getElementById('logoDarkInput');
-    
-    if (lightInput.files[0]) {
-        formData.append('logo_light', lightInput.files[0]);
-    }
-    if (darkInput.files[0]) {
-        formData.append('logo_dark', darkInput.files[0]);
-    }
-    
-    fetch('save_logo.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Logos wurden erfolgreich gespeichert');
-            window.location.reload();
-        } else {
-            alert('Fehler: ' + data.message);
+// Vorschau für Logo-Upload
+function updateLogoPreview(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        
+        // Update Dateiname-Anzeige
+        const span = input.parentElement.querySelector('span');
+        if (span) {
+            span.textContent = file.name;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten');
-    });
+    }
 }
 
-function saveKassenstart() {
-    const startdatum = document.getElementById('startdatum').value;
-    const startbetrag = document.getElementById('startbetrag').value;
-    
-    if (!startdatum || !startbetrag) {
+// Event-Listener für Logo-Uploads
+document.getElementById('logoLightInput').addEventListener('change', function() {
+    updateLogoPreview(this, 'logoLightPreview');
+});
+
+document.getElementById('logoDarkInput').addEventListener('change', function() {
+    updateLogoPreview(this, 'logoDarkPreview');
+});
+
+async function saveLogo() {
+    try {
+        const formData = new FormData();
+        const lightInput = document.getElementById('logoLightInput');
+        const darkInput = document.getElementById('logoDarkInput');
+        
+        if (lightInput.files[0]) {
+            formData.append('logo_light', lightInput.files[0]);
+        }
+        
+        if (darkInput.files[0]) {
+            formData.append('logo_dark', darkInput.files[0]);
+        }
+
+        if (!lightInput.files[0] && !darkInput.files[0]) {
+            alert('Bitte wählen Sie mindestens ein Logo aus.');
+            return;
+        }
+
+        const response = await fetch('save_logo.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Logos wurden erfolgreich gespeichert');
+            location.reload();
+        } else {
+            throw new Error(result.message || 'Fehler beim Speichern der Logos');
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern der Logos: ' + error.message);
+    }
+}
+
+// Kassenstart speichern
+async function saveKassenstart() {
+    const datum = document.getElementById('startdatum').value;
+    const betrag = document.getElementById('startbetrag').value;
+
+    if (!datum || !betrag) {
         alert('Bitte füllen Sie alle Felder aus.');
         return;
     }
-    
-    const formData = new FormData();
-    formData.append('datum', startdatum);
-    formData.append('betrag', startbetrag);
-    
-    fetch('save_kassenstart.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+
+    try {
+        const response = await fetch('save_kassenstart.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                datum: datum,
+                betrag: parseFloat(betrag)
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
             alert('Kassenstart wurde erfolgreich gespeichert');
-            window.location.reload();
+            location.reload();
         } else {
-            alert('Fehler: ' + data.message);
+            throw new Error(result.message || 'Fehler beim Speichern des Kassenstarts');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten');
-    });
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern des Kassenstarts: ' + error.message);
+    }
 }
 
-// Dateinamen anzeigen
-document.querySelectorAll('input[type="file"]').forEach(input => {
-    input.addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name || 'Keine ausgewählt';
-        e.target.parentElement.querySelector('span').textContent = fileName;
-    });
+// Weitere Einstellungen speichern
+document.getElementById('siteSettingsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const siteName = document.getElementById('siteName').value;
+    
+    try {
+        const response = await fetch('save_site_settings.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                site_name: siteName
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Einstellungen wurden erfolgreich gespeichert');
+            location.reload();
+        } else {
+            throw new Error(result.message || 'Fehler beim Speichern der Einstellungen');
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern der Einstellungen: ' + error.message);
+    }
 });
 </script>
 

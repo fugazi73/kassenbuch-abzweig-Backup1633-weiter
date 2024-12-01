@@ -127,5 +127,7 @@ $basePath = $isInSubfolder ? '..' : '.';
             </div>
         </nav>
     </header>
+
+    <main class="flex-grow-1"><!-- Hauptinhalt beginnt hier -->
 </body>
 </html> 

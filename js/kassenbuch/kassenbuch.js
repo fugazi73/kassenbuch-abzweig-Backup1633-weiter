@@ -154,128 +154,141 @@ function saveEntry() {
 
 // Bearbeiten Funktion
 async function editEntry(id) {
+    if (!id) {
+        console.error('Keine ID zum Bearbeiten angegeben');
+        return;
+    }
+
     try {
+        // Lade die Daten des Eintrags via GET
         const response = await fetch(`get_entry.php?id=${id}`);
-        if (!response.ok) throw new Error('Fehler beim Laden der Daten');
-        
-        const entry = await response.json();
-        
-        // Formularfelder füllen
-        document.getElementById('datum').value = entry.datum;
-        document.getElementById('bemerkung').value = entry.bemerkung;
-        document.getElementById('einnahme').value = entry.einnahme > 0 ? entry.einnahme : '';
-        document.getElementById('ausgabe').value = entry.ausgabe > 0 ? entry.ausgabe : '';
-        
-        // Button zum Speichern ändern
-        const saveBtn = document.querySelector('button[onclick="saveEntry()"]');
-        saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Aktualisieren';
-        saveBtn.onclick = () => updateEntry(id);
-        
-        // Abbrechen-Button hinzufügen
-        if (!document.getElementById('cancelBtn')) {
-            const cancelBtn = document.createElement('button');
-            cancelBtn.id = 'cancelBtn';
-            cancelBtn.className = 'btn btn-secondary ms-2';
-            cancelBtn.innerHTML = '<i class="bi bi-x-circle"></i> Abbrechen';
-            cancelBtn.onclick = resetForm;
-            saveBtn.parentNode.appendChild(cancelBtn);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server-Antwort:', errorText);
+            throw new Error('Fehler beim Laden der Daten');
         }
+
+        const data = await response.json();
+        console.log('Geladene Daten:', data); // Debug-Ausgabe
+
+        if (!data.success || !data.entry) {
+            throw new Error(data.message || 'Eintrag nicht gefunden');
+        }
+
+        const entry = data.entry;
+
+        // Modal und Formular finden
+        const editModal = document.getElementById('editModal');
+        if (!editModal) {
+            throw new Error('Modal nicht gefunden');
+        }
+
+        const form = editModal.querySelector('form');
+        if (!form) {
+            throw new Error('Formular nicht gefunden');
+        }
+
+        // Formularfelder füllen
+        form.querySelector('input[name="id"]').value = entry.id;
+        form.querySelector('input[name="datum"]').value = entry.datum.split(' ')[0];
+        form.querySelector('input[name="beleg_nr"]').value = entry.beleg_nr || '';
+        form.querySelector('input[name="bemerkung"]').value = entry.bemerkung || '';
+        form.querySelector('input[name="einnahme"]').value = entry.einnahme > 0 ? entry.einnahme : '';
+        form.querySelector('input[name="ausgabe"]').value = entry.ausgabe > 0 ? entry.ausgabe : '';
+
+        // Modal öffnen
+        const modal = new bootstrap.Modal(editModal);
+        modal.show();
+
+        // Submit-Handler für das Formular
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('update_entry.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Update Ergebnis:', result); // Debug-Ausgabe
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Fehler beim Speichern');
+                }
+
+                if (result.success) {
+                    modal.hide();
+                    location.reload();
+                } else {
+                    throw new Error(result.message || 'Fehler beim Speichern');
+                }
+            } catch (error) {
+                console.error('Fehler beim Speichern:', error);
+                alert('Fehler beim Speichern: ' + error.message);
+            }
+        };
+
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Laden der Daten');
+        alert('Fehler: ' + error.message);
     }
 }
 
 // Löschen Funktion
 async function deleteEntry(id) {
+    if (!id) {
+        console.error('Keine ID zum Löschen angegeben');
+        return;
+    }
+
     if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
         return;
     }
 
     try {
+        // Erstelle FormData für den POST-Request
+        const formData = new FormData();
+        formData.append('id', id);
+
+        console.log('Sende Lösch-Request für ID:', id); // Debug-Ausgabe
+
         const response = await fetch('delete_entry.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id: id })
+            body: formData
         });
 
-        if (!response.ok) throw new Error('Fehler beim Löschen');
-        
-        const data = await response.json();
-        
-        if (data.success) {
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server-Antwort:', errorText);
+            throw new Error('Fehler beim Löschen');
+        }
+
+        const result = await response.json();
+        if (result.success) {
             location.reload();
         } else {
-            throw new Error(data.message || 'Fehler beim Löschen');
+            throw new Error(result.error || 'Fehler beim Löschen');
         }
     } catch (error) {
-        console.error('Fehler:', error);
-        alert('Fehler beim Löschen des Eintrags');
-    }
-}
-
-// Update Funktion
-async function updateEntry(id) {
-    const datum = document.getElementById('datum').value;
-    const bemerkung = document.getElementById('bemerkung').value;
-    const einnahme = document.getElementById('einnahme').value || '0';
-    const ausgabe = document.getElementById('ausgabe').value || '0';
-
-    if (!datum || !bemerkung) {
-        alert('Bitte füllen Sie alle Pflichtfelder aus.');
-        return;
-    }
-
-    try {
-        const response = await fetch('update_entry.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                id: id,
-                datum: datum,
-                bemerkung: bemerkung,
-                einnahme: parseFloat(einnahme),
-                ausgabe: parseFloat(ausgabe)
-            })
-        });
-
-        if (!response.ok) throw new Error('Fehler beim Aktualisieren');
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            location.reload();
-        } else {
-            throw new Error(data.message || 'Fehler beim Aktualisieren');
-        }
-    } catch (error) {
-        console.error('Fehler:', error);
-        alert('Fehler beim Aktualisieren des Eintrags');
+        console.error('Fehler beim Löschen:', error);
+        alert('Fehler beim Löschen: ' + error.message);
     }
 }
 
 // Formular zurücksetzen
 function resetForm() {
-    const form = document.querySelector('.card-body');
-    const saveBtn = form.querySelector('button[onclick]');
-    const cancelBtn = document.getElementById('cancelBtn');
-
-    // Formularfelder zurücksetzen
-    document.getElementById('datum').value = new Date().toISOString().split('T')[0];
-    document.getElementById('bemerkung').value = '';
-    document.getElementById('einnahme').value = '';
-    document.getElementById('ausgabe').value = '';
-    document.getElementById('einnahme').disabled = false;
-    document.getElementById('ausgabe').disabled = false;
-
-    // Button zurücksetzen
-    saveBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Neuer Eintrag';
-    saveBtn.onclick = saveEntry;
-
-    // Abbrechen-Button entfernen
-    if (cancelBtn) cancelBtn.remove();
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        const form = editModal.querySelector('form');
+        if (form) {
+            form.reset();
+            const modal = bootstrap.Modal.getInstance(editModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    }
 } 
