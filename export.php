@@ -8,6 +8,113 @@ if (!is_admin()) {
     handle_forbidden();
 }
 
+// Löschfunktion
+if (isset($_POST['action']) && $_POST['action'] == 'delete' && isset($_POST['id'])) {
+    $id = intval($_POST['id']);
+    
+    // Hole den Dateinamen bevor wir den Eintrag löschen
+    $sql = "SELECT filename FROM export_history WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $file = $result->fetch_assoc();
+    
+    if ($file) {
+        // Lösche die physische Datei wenn sie existiert
+        $filepath = 'exports/' . $file['filename'];
+        if (file_exists($filepath)) {
+            unlink($filepath);
+        }
+        
+        // Lösche den Datenbankeintrag
+        $sql = "DELETE FROM export_history WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        
+        header("Location: export.php?msg=deleted");
+        exit;
+    }
+}
+
+// Download-Funktion
+if (isset($_GET['download']) && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
+    
+    $sql = "SELECT filename FROM export_history WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $file = $result->fetch_assoc();
+    
+    if ($file) {
+        $filepath = 'exports/' . $file['filename'];
+        if (file_exists($filepath)) {
+            $ext = strtolower(pathinfo($filepath, PATHINFO_EXTENSION));
+            
+            switch($ext) {
+                case 'pdf':
+                    header('Content-Type: application/pdf');
+                    break;
+                case 'xlsx':
+                    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                    break;
+                case 'csv':
+                    header('Content-Type: text/csv');
+                    break;
+                default:
+                    die('Ungültiges Dateiformat');
+            }
+            
+            header('Content-Disposition: attachment; filename="' . $file['filename'] . '"');
+            header('Content-Length: ' . filesize($filepath));
+            readfile($filepath);
+            exit;
+        }
+    }
+    die('Datei nicht gefunden');
+}
+
+// Vorschau-Funktion
+if (isset($_GET['preview']) && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
+    
+    $sql = "SELECT filename FROM export_history WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $file = $result->fetch_assoc();
+    
+    if ($file) {
+        $filepath = 'exports/' . $file['filename'];
+        if (file_exists($filepath)) {
+            $ext = strtolower(pathinfo($filepath, PATHINFO_EXTENSION));
+            
+            switch($ext) {
+                case 'pdf':
+                    header('Content-Type: application/pdf');
+                    break;
+                case 'xlsx':
+                    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                    break;
+                case 'csv':
+                    header('Content-Type: text/csv');
+                    break;
+                default:
+                    die('Ungültiges Dateiformat');
+            }
+            
+            header('Content-Disposition: inline; filename="' . $file['filename'] . '"');
+            readfile($filepath);
+            exit;
+        }
+    }
+    die('Datei nicht gefunden');
+}
+
 $page_title = 'Export | Kassenbuch';
 require_once 'includes/header.php';
 
@@ -48,6 +155,14 @@ while ($row = $months_result->fetch_assoc()) {
 ?>
 
 <div class="max-width-container py-4">
+    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-check-circle me-2"></i>
+            Export wurde erfolgreich gelöscht.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
     <div class="card shadow-sm">
         <div class="card-body">
             <h1 class="h3 card-title mb-4">
@@ -137,36 +252,49 @@ while ($row = $months_result->fetch_assoc()) {
                         $result = $conn->query($sql);
                         
                         if($result && $result->num_rows > 0):
-                            while($row = $result->fetch_assoc()): ?>
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center">
+                            while($row = $result->fetch_assoc()): 
+                                $date_from = date('d.m.Y', strtotime($row['date_from']));
+                                $date_to = date('d.m.Y', strtotime($row['date_to']));
+                                $created_at = date('d.m.Y H:i', strtotime($row['created_at']));
+                            ?>
+                                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="text-muted small"><?= $created_at ?></div>
                                         <div>
-                                            <div class="small text-muted">
-                                                <?= date('d.m.Y H:i', strtotime($row['created_at'])) ?>
-                                            </div>
-                                            <div class="small">
-                                                <?= htmlspecialchars($row['date_from']) ?> - 
-                                                <?= htmlspecialchars($row['date_to']) ?>
-                                                <span class="badge bg-secondary"><?= strtoupper($row['format']) ?></span>
-                                            </div>
+                                            <?= $date_from ?> - <?= $date_to ?>
+                                            <span class="badge bg-secondary ms-2"><?= strtoupper($row['format']) ?></span>
                                         </div>
-                                        <div class="btn-group">
-                                            <a href="exports/<?= $row['filename'] ?>" 
-                                               class="btn btn-outline-primary btn-sm" 
-                                               target="_blank">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="exports/<?= $row['filename'] ?>" 
-                                               class="btn btn-outline-primary btn-sm" 
-                                               download>
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                        </div>
+                                    </div>
+                                    <div class="btn-group">
+                                        <a href="export.php?preview=1&id=<?= $row['id'] ?>" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           target="_blank"
+                                           title="Vorschau">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="export.php?download=1&id=<?= $row['id'] ?>" 
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Download">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        <form action="export.php" method="post" style="display: inline;" 
+                                              onsubmit="return confirm('Sind Sie sicher, dass Sie diesen Export löschen möchten?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="<?= $row['id'] ?>">
+                                            <button type="submit" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             <?php endwhile;
                         else: ?>
-                            <div class="list-group-item text-muted small">Keine Export-Historie verfügbar.</div>
+                            <div class="list-group-item text-muted text-center py-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Keine Export-Historie verfügbar
+                            </div>
                         <?php endif;
                     endif; ?>
                 </div>

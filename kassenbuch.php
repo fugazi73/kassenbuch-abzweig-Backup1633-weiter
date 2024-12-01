@@ -44,19 +44,34 @@ if (!is_admin() && !is_chef()) {
 $params = [];
 $types = "";
 
-// Datum-Filter
-if (isset($_GET['von_datum']) && !empty($_GET['von_datum'])) {
-    $von_datum = date('Y-m-d', strtotime(str_replace('.', '-', $_GET['von_datum'])));
-    $sql .= " AND datum >= ?";
-    $params[] = $von_datum;
-    $types .= "s";
+// Monats-Filter
+if (isset($_GET['monat']) && !empty($_GET['monat'])) {
+    $monat_jahr = explode('.', $_GET['monat']);
+    if (count($monat_jahr) == 2) {
+        $monat = $monat_jahr[0];
+        $jahr = $monat_jahr[1];
+        $sql .= " AND MONTH(datum) = ? AND YEAR(datum) = ?";
+        $params[] = $monat;
+        $params[] = $jahr;
+        $types .= "ss";
+    }
 }
 
-if (isset($_GET['bis_datum']) && !empty($_GET['bis_datum'])) {
-    $bis_datum = date('Y-m-d', strtotime(str_replace('.', '-', $_GET['bis_datum'])));
-    $sql .= " AND datum <= ?";
-    $params[] = $bis_datum;
-    $types .= "s";
+// Datum-Filter (nur wenn kein Monatsfilter aktiv)
+if (!isset($_GET['monat']) || empty($_GET['monat'])) {
+    if (isset($_GET['von_datum']) && !empty($_GET['von_datum'])) {
+        $von_datum = date('Y-m-d', strtotime(str_replace('.', '-', $_GET['von_datum'])));
+        $sql .= " AND datum >= ?";
+        $params[] = $von_datum;
+        $types .= "s";
+    }
+
+    if (isset($_GET['bis_datum']) && !empty($_GET['bis_datum'])) {
+        $bis_datum = date('Y-m-d', strtotime(str_replace('.', '-', $_GET['bis_datum'])));
+        $sql .= " AND datum <= ?";
+        $params[] = $bis_datum;
+        $types .= "s";
+    }
 }
 
 // Typ-Filter
@@ -91,6 +106,27 @@ while ($row = $bemerkungen_result->fetch_assoc()) {
     $bemerkungen[] = $row['bemerkung'];
 }
 
+// Verfügbare Monate laden
+$monate_query = $conn->prepare("
+    SELECT DISTINCT 
+        YEAR(datum) as jahr,
+        MONTH(datum) as monat,
+        DATE_FORMAT(datum, '%m.%Y') as monat_jahr,
+        DATE_FORMAT(datum, '%M %Y') as monat_name
+    FROM kassenbuch_eintraege 
+    WHERE bemerkung != 'Kassenstart'
+    ORDER BY jahr DESC, monat DESC
+");
+$monate_query->execute();
+$monate_result = $monate_query->get_result();
+$monate = [];
+while ($row = $monate_result->fetch_assoc()) {
+    $monate[] = [
+        'wert' => $row['monat_jahr'],
+        'anzeige' => ucfirst(strftime('%B %Y', strtotime($row['jahr'] . '-' . $row['monat'] . '-01')))
+    ];
+}
+
 // Header einbinden
 require_once 'includes/header.php';
 
@@ -123,7 +159,7 @@ require_once 'includes/header.php';
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-plus-circle text-success"></i> Neuer Eintrag
                 </h3>
-                <div class="quick-entry-form p-3 border border-danger rounded bg-danger bg-opacity-10">
+                <div class="quick-entry-form p-3 bg-light rounded">
                     <form id="quickEntryForm" class="row g-3">
                         <div class="col-md-2">
                             <label for="datum" class="form-label small">Datum</label>
@@ -144,7 +180,7 @@ require_once 'includes/header.php';
                         <div class="col-md-2">
                             <label for="einnahme" class="form-label small">Einnahme</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="einnahme" name="einnahme" 
+                                <input type="number" class="form-control einnahme-field" id="einnahme" name="einnahme" 
                                        step="0.01" min="0">
                                 <span class="input-group-text">€</span>
                             </div>
@@ -152,7 +188,7 @@ require_once 'includes/header.php';
                         <div class="col-md-2">
                             <label for="ausgabe" class="form-label small">Ausgabe</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="ausgabe" name="ausgabe" 
+                                <input type="number" class="form-control ausgabe-field" id="ausgabe" name="ausgabe" 
                                        step="0.01" min="0">
                                 <span class="input-group-text">€</span>
                             </div>
@@ -173,13 +209,25 @@ require_once 'includes/header.php';
                     <i class="bi bi-funnel text-info"></i> Filter
                 </h3>
                 <form id="filterForm" method="GET" class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label small">Monat</label>
+                        <select name="monat" class="form-select">
+                            <option value="">Alle Monate</option>
+                            <?php foreach ($monate as $monat): ?>
+                                <option value="<?= htmlspecialchars($monat['wert']) ?>" 
+                                        <?= ($_GET['monat'] ?? '') === $monat['wert'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($monat['anzeige']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label small">Von Datum</label>
                         <input type="text" name="von_datum" class="form-control" 
                                placeholder="TT.MM.JJJJ"
                                value="<?= isset($_GET['von_datum']) ? htmlspecialchars($_GET['von_datum']) : '' ?>">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label small">Bis Datum</label>
                         <input type="text" name="bis_datum" class="form-control" 
                                placeholder="TT.MM.JJJJ"
@@ -195,9 +243,15 @@ require_once 'includes/header.php';
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small">Bemerkung</label>
-                        <input type="text" name="bemerkung" class="form-control"
-                               list="bemerkungen"
-                               value="<?= isset($_GET['bemerkung']) ? htmlspecialchars($_GET['bemerkung']) : '' ?>">
+                        <select name="bemerkung" class="form-select select2-filter">
+                            <option value="">Alle</option>
+                            <?php foreach ($bemerkungen as $bemerkung): ?>
+                                <option value="<?= htmlspecialchars($bemerkung) ?>"
+                                        <?= ($_GET['bemerkung'] ?? '') === $bemerkung ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($bemerkung) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
@@ -217,7 +271,8 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<!-- Select2 CSS und JS einbinden -->
+<!-- jQuery und Select2 CSS/JS einbinden -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -231,6 +286,76 @@ $(document).ready(function() {
         allowClear: true,
         placeholder: 'Bemerkung auswählen oder eingeben',
         tags: true,
+        createTag: function(params) {
+            return {
+                id: params.term,
+                text: params.term,
+                newOption: true
+            };
+        },
+        templateResult: function(data) {
+            var $result = $("<span></span>");
+            if (data.newOption) {
+                $result.append('<i class="bi bi-plus-circle me-2"></i>' + data.text);
+            } else {
+                $result.text(data.text);
+            }
+            return $result;
+        },
+        language: {
+            noResults: function() {
+                return "Keine Ergebnisse gefunden";
+            },
+            searching: function() {
+                return "Suche...";
+            }
+        }
+    });
+
+    // Dark Mode Anpassung für Select2
+    function updateSelect2Theme() {
+        if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
+            $('.select2-container--bootstrap-5 .select2-selection').css({
+                'background-color': '#2b3035',
+                'border-color': 'rgba(255,255,255,.125)',
+                'color': '#fff'
+            });
+            $('.select2-container--bootstrap-5 .select2-dropdown').css({
+                'background-color': '#2b3035',
+                'border-color': 'rgba(255,255,255,.125)',
+                'color': '#fff'
+            });
+            $('.select2-container--bootstrap-5 .select2-search__field').css({
+                'background-color': '#2b3035',
+                'color': '#fff',
+                'border-color': 'rgba(255,255,255,.125)'
+            });
+        }
+    }
+
+    // Initial theme update
+    updateSelect2Theme();
+
+    // Update theme when it changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'data-bs-theme') {
+                updateSelect2Theme();
+            }
+        });
+    });
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-bs-theme']
+    });
+
+    // Select2 für Filter-Bemerkungen
+    $('.select2-filter').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        allowClear: true,
+        placeholder: 'Alle Bemerkungen',
         language: {
             noResults: function() {
                 return "Keine Ergebnisse gefunden";
@@ -238,14 +363,20 @@ $(document).ready(function() {
         }
     });
 
-    // Dark Mode Anpassung
-    if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
-        $('.select2-container--bootstrap-5 .select2-selection').css({
-            'background-color': '#2b3035',
-            'border-color': 'rgba(255,255,255,.125)',
-            'color': '#fff'
-        });
-    }
+    // Monatsfilter Handling
+    $('select[name="monat"]').on('change', function() {
+        const monat = $(this).val();
+        if (monat) {
+            const [month, year] = monat.split('.');
+            const startDate = `01.${monat}`;
+            const endDate = new Date(year, month, 0).getDate() + `.${monat}`;
+            $('input[name="von_datum"]').val(startDate);
+            $('input[name="bis_datum"]').val(endDate);
+        } else {
+            $('input[name="von_datum"]').val('');
+            $('input[name="bis_datum"]').val('');
+        }
+    });
 });
 </script>
 
@@ -400,6 +531,106 @@ datalist option:hover {
     background-color: #2b3035;
     color: #fff;
     border-color: rgba(255,255,255,.125);
+}
+
+/* Neue Styles für Ein-/Ausgabe Felder */
+.einnahme-field {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.ausgabe-field {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+/* Dark mode Anpassungen für die Felder */
+[data-bs-theme="dark"] .einnahme-field {
+    background-color: rgba(25, 135, 84, 0.15) !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .ausgabe-field {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    color: #fff !important;
+}
+
+/* Neuer Eintrag Bereich */
+.quick-entry-form {
+    background-color: var(--bs-light);
+    border: 1px solid var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .quick-entry-form {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .input-group-text {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+/* Select2 Dark Mode Anpassungen */
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection__rendered {
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+    background-color: #2b3035 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-search__field {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__option[aria-selected=true] {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Dark mode table adjustments */
+[data-bs-theme="dark"] .table {
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
+}
+
+[data-bs-theme="dark"] .btn-group .btn {
+    border-color: rgba(255, 255, 255, 0.1);
 }
 </style>
 

@@ -142,6 +142,11 @@ $basePath = $isInSubfolder ? '..' : '.';
                                         <i class="bi bi-file-earmark-excel"></i> Excel Import
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" href="<?= $basePath ?>/export_history.php">
+                                        <i class="bi bi-clock-history"></i> Export Historie
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                         <?php endif; ?>

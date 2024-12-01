@@ -153,6 +153,34 @@ require_once 'includes/header.php';
                                     Dieser Name wird im Browser-Tab und der Navigation angezeigt.
                                 </div>
                             </div>
+
+                            <!-- Firmeninformationen -->
+                            <div class="mb-3">
+                                <h5 class="text-primary small mb-3">Firmeninformationen</h5>
+                                <div class="mb-2">
+                                    <label for="companyName" class="form-label small">Firmenname</label>
+                                    <input type="text" class="form-control" id="companyName" name="company_name" 
+                                           value="<?= htmlspecialchars($settings['company_name'] ?? '') ?>">
+                                </div>
+                                <div class="mb-2">
+                                    <label for="companyStreet" class="form-label small">Straße und Hausnummer</label>
+                                    <input type="text" class="form-control" id="companyStreet" name="company_street" 
+                                           value="<?= htmlspecialchars($settings['company_street'] ?? '') ?>">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <label for="companyZip" class="form-label small">PLZ</label>
+                                        <input type="text" class="form-control" id="companyZip" name="company_zip" 
+                                               value="<?= htmlspecialchars($settings['company_zip'] ?? '') ?>">
+                                    </div>
+                                    <div class="col-md-8 mb-2">
+                                        <label for="companyCity" class="form-label small">Ort</label>
+                                        <input type="text" class="form-control" id="companyCity" name="company_city" 
+                                               value="<?= htmlspecialchars($settings['company_city'] ?? '') ?>">
+                                    </div>
+                                </div>
+                            </div>
+
                             <button type="submit" class="btn btn-primary btn-sm">
                                 <i class="bi bi-save"></i> Speichern
                             </button>
@@ -326,7 +354,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('siteSettingsForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const siteName = document.getElementById('siteName').value;
+        const formData = {
+            site_name: document.getElementById('siteName').value,
+            company_name: document.getElementById('companyName').value,
+            company_street: document.getElementById('companyStreet').value,
+            company_zip: document.getElementById('companyZip').value,
+            company_city: document.getElementById('companyCity').value
+        };
         
         try {
             const response = await fetch('save_site_settings.php', {
@@ -334,21 +368,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    site_name: siteName
-                })
+                body: JSON.stringify(formData)
             });
 
             const result = await response.json();
             
             if (result.success) {
-                location.reload();
+                // Zeige Erfolgsmeldung
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alert.innerHTML = `
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    Einstellungen wurden erfolgreich gespeichert
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.getElementById('siteSettingsForm').appendChild(alert);
+                
+                // Entferne die Meldung nach 3 Sekunden
+                setTimeout(() => {
+                    alert.remove();
+                }, 3000);
             } else {
                 throw new Error(result.message || 'Fehler beim Speichern der Einstellungen');
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Speichern der Einstellungen: ' + error.message);
+            // Zeige Fehlermeldung
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alert.innerHTML = `
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.getElementById('siteSettingsForm').appendChild(alert);
         }
     });
 });

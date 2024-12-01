@@ -13,27 +13,61 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
-        $site_name = $_POST['site_name'] ?? '';
+        // Empfange JSON-Daten
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+
+        if (!$data) {
+            throw new Exception('Ungültige Daten empfangen');
+        }
+
+        $site_name = $data['site_name'] ?? '';
+        $company_name = $data['company_name'] ?? '';
+        $company_street = $data['company_street'] ?? '';
+        $company_zip = $data['company_zip'] ?? '';
+        $company_city = $data['company_city'] ?? '';
         
         if (empty($site_name)) {
             throw new Exception('Seitenname darf nicht leer sein');
         }
 
+        // Beginne Transaktion
+        $conn->begin_transaction();
+
+        // Speichere alle Einstellungen
+        $settings = [
+            'site_name' => $site_name,
+            'company_name' => $company_name,
+            'company_street' => $company_street,
+            'company_zip' => $company_zip,
+            'company_city' => $company_city
+        ];
+
         $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) 
-                               VALUES ('site_name', ?) 
+                               VALUES (?, ?) 
                                ON DUPLICATE KEY UPDATE setting_value = ?");
-        $stmt->bind_param("ss", $site_name, $site_name);
-        
-        if ($stmt->execute()) {
-            echo json_encode([
-                'success' => true,
-                'message' => 'Einstellungen wurden gespeichert'
-            ]);
-        } else {
-            throw new Exception('Fehler beim Speichern der Einstellungen');
+
+        foreach ($settings as $key => $value) {
+            $stmt->bind_param("sss", $key, $value, $value);
+            if (!$stmt->execute()) {
+                throw new Exception('Fehler beim Speichern der Einstellung: ' . $key);
+            }
         }
 
+        // Commit Transaktion
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Einstellungen wurden gespeichert'
+        ]);
+
     } catch (Exception $e) {
+        // Rollback bei Fehler
+        if ($conn->connect_errno === 0) {
+            $conn->rollback();
+        }
+        
         error_log("Fehler beim Speichern der Einstellungen: " . $e->getMessage());
         echo json_encode([
             'success' => false,

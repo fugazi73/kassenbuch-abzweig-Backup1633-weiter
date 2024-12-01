@@ -73,6 +73,27 @@ try {
     $result = $stmt->get_result();
     $data = $result->fetch_all(MYSQLI_ASSOC);
 
+    // Hole die Firmeninformationen aus den Einstellungen
+    $company_info = [];
+    $company_settings = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('company_name', 'company_street', 'company_zip', 'company_city')");
+    while ($row = $company_settings->fetch_assoc()) {
+        $company_info[$row['setting_key']] = $row['setting_value'];
+    }
+
+    // Erstelle die Firmenadresse
+    $company_address = '';
+    if (!empty($company_info['company_name'])) {
+        $company_address .= $company_info['company_name'];
+        if (!empty($company_info['company_street'])) {
+            $company_address .= ', ' . $company_info['company_street'];
+        }
+        if (!empty($company_info['company_zip']) || !empty($company_info['company_city'])) {
+            $company_address .= ', ' . $company_info['company_zip'] . ' ' . $company_info['company_city'];
+        }
+    } else {
+        $company_address = 'Mustermann GmbH, Musterstrasse 4, 8280 Kreuzlingen';
+    }
+
     // Excel erstellen
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
@@ -99,7 +120,7 @@ try {
     
     // Firmeninfo
     $sheet->setCellValue('A2', 'Firma');
-    $sheet->setCellValue('B2', 'Mustermann GmbH, Musterstrasse 4, 8280 Kreuzlingen');
+    $sheet->setCellValue('B2', $company_address);
     $sheet->mergeCells('B2:E2');
     $sheet->getStyle('A2')->getFont()->setBold(true);
     
@@ -203,10 +224,21 @@ try {
     $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setRGB('008000');
     
     // Formatierung
-    // Währungsformat mit Punkt als Tausendertrennzeichen
-    $sheet->getStyle('E3:E6')->getNumberFormat()->setFormatCode('#.##0,00 €');
-    $sheet->getStyle("D9:E$lastRow")->getNumberFormat()->setFormatCode('#.##0,00 €');
-    $sheet->getStyle("D$sumRow:E$saldoRow")->getNumberFormat()->setFormatCode('#.##0,00 €');
+    // Währungsformat mit genau 2 Dezimalstellen
+    $numberFormat = \PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2;
+    $sheet->getStyle('E3:E6')->getNumberFormat()->setFormatCode($numberFormat . ' €');
+    $sheet->getStyle("D9:E$lastRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
+    $sheet->getStyle("D$sumRow:E$saldoRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
+    
+    // Runde alle Zahlen auf 2 Dezimalstellen
+    foreach($data as $entry) {
+        if ($entry['einnahme'] > 0) {
+            $entry['einnahme'] = round($entry['einnahme'], 2);
+        }
+        if ($entry['ausgabe'] > 0) {
+            $entry['ausgabe'] = round($entry['ausgabe'], 2);
+        }
+    }
     
     // Ausrichtung
     $sheet->getStyle('A8:A'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -223,18 +255,26 @@ try {
     switch($format) {
         case 'xlsx':
             $writer = new Xlsx($spreadsheet);
+            // Speichere die Datei physisch für die Historie
+            $writer->save($filepath);
+            
+            // Sende die Datei zum Download
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             header('Content-Disposition: attachment;filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
-            $writer->save('php://output');
+            readfile($filepath);
             break;
             
         case 'csv':
             $writer = new Csv($spreadsheet);
+            // Speichere die Datei physisch für die Historie
+            $writer->save($filepath);
+            
+            // Sende die Datei zum Download
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment;filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
-            $writer->save('php://output');
+            readfile($filepath);
             break;
             
         case 'pdf':
@@ -246,8 +286,8 @@ try {
                 mkdir('exports', 0777, true);
             }
             
-            // Erstelle den korrekten Pfad für die PDF-Datei
-            $pdf_file = 'exports/' . basename($filename);
+            // Erstelle den absoluten Pfad für die PDF-Datei
+            $pdf_file = __DIR__ . DIRECTORY_SEPARATOR . 'exports' . DIRECTORY_SEPARATOR . basename($filename);
             
             // Erstelle PDF
             $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8');
@@ -275,7 +315,7 @@ try {
             $pdf->SetFont('helvetica', 'B', 11);
             $pdf->Cell(30, 8, 'Firma:', 0, 0);
             $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(0, 8, 'Mustermann GmbH, Musterstrasse 4, 8280 Kreuzlingen', 0, 1);
+            $pdf->Cell(0, 8, $company_address, 0, 1);
             
             // Linke Spalte
             $pdf->SetFont('helvetica', 'B', 11);
@@ -379,14 +419,11 @@ try {
             $pdf->SetTextColor(0, 128, 0); // Grün für positiven Saldo
             $pdf->Cell($w[4], 8, number_format($saldo, 2, ',', '.'), 1, 1, 'R');
             
-            // Direkt zum Browser ausgeben
-            try {
-                $pdf->Output($filename, 'D');
-                exit();
-            } catch (Exception $e) {
-                error_log('PDF Export Fehler: ' . $e->getMessage());
-                throw new Exception('Fehler beim PDF-Export: ' . $e->getMessage());
-            }
+            // Speichere die PDF physisch für die Historie
+            $pdf->Output($pdf_file, 'F');
+            
+            // Sende die Datei zum Download
+            $pdf->Output($filename, 'D');
             break;
             
         default:
