@@ -30,143 +30,191 @@ $kassenstart_betrag = $settings['kassenstart'] ?? '0';
 require_once 'includes/header.php';
 ?>
 
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h1 class="card-title mb-4">
-                        <i class="bi bi-gear-fill text-primary"></i> Einstellungen
-                    </h1>
+<div class="max-width-container py-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h1 class="h3 card-title mb-4">
+                <i class="bi bi-gear-fill text-primary"></i> Einstellungen
+            </h1>
 
-                    <!-- Kasseneinstellungen -->
-                    <div class="settings-section mb-5">
-                        <h3 class="border-bottom pb-2 mb-4">
-                            <i class="bi bi-cash text-success"></i> Kasseneinstellungen
-                        </h3>
-                        <div class="settings-content">
-                            <div class="mb-4">
-                                <h5 class="text-primary mb-3">Kassenstart</h5>
-                                <div class="alert alert-info shadow-sm">
-                                    <i class="bi bi-info-circle-fill me-2"></i>
-                                    Aktueller Startbetrag: <strong><?= number_format(floatval($kassenstart_betrag), 2, ',', '.') ?> €</strong> 
-                                    <br>
-                                    <small class="text-muted">Stand: <?= $kassenstart_datum ?></small>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="kassenstart_datum" class="form-label">Startdatum</label>
-                                        <input type="date" class="form-control" id="kassenstart_datum" 
-                                               value="<?= date('Y-m-d') ?>" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="kassenstart" class="form-label">Startbetrag</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="kassenstart" 
-                                                   value="<?= $kassenstart_betrag ?>" 
-                                                   step="0.01" min="0" required>
-                                            <span class="input-group-text">€</span>
-                                            <button class="btn btn-primary" id="saveKassenstartBtn">
-                                                <i class="bi bi-save"></i> Speichern
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-text mt-2">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Dieser Betrag wird als Startbetrag im Kassenbuch verwendet.
-                                </div>
-                            </div>
+            <!-- Kasseneinstellungen -->
+            <div class="admin-section mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-cash text-success"></i> Kasseneinstellungen
+                </h3>
+                <div class="settings-content">
+                    <div class="mb-4">
+                        <h5 class="text-primary small mb-3">Kassenstart</h5>
+                        <div class="alert alert-info shadow-sm">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            Aktueller Startbetrag: <strong><?= number_format(floatval($kassenstart_betrag), 2, ',', '.') ?> €</strong> 
+                            <br>
+                            <small class="text-muted">Stand: <?= $kassenstart_datum ?></small>
                         </div>
-                    </div>
-
-                    <!-- Logo Einstellungen -->
-                    <div class="settings-section mb-5">
-                        <h3 class="border-bottom pb-2 mb-4">
-                            <i class="bi bi-image text-info"></i> Logo Einstellungen
-                        </h3>
-                        <div class="settings-content">
-                            <div class="row">
-                                <div class="col-md-6 mb-4">
-                                    <div class="card h-100">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Logo (Hell)</h5>
-                                            <div class="logo-preview mb-3 text-center p-3 bg-light rounded">
-                                                <img src="<?= $settings['logo_light'] ?? 'images/logo_light.png' ?>" 
-                                                     alt="Logo (Hell)" 
-                                                     id="logoLightPreview"
-                                                     class="img-fluid"
-                                                     style="max-height: 100px; width: auto;">
-                                            </div>
-                                            <div class="logo-upload text-center">
-                                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('logoLightInput').click()">
-                                                    <i class="bi bi-upload"></i> Datei auswählen
-                                                </button>
-                                                <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
-                                                <input type="file" class="d-none" id="logoLightInput" accept="image/*">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-4">
-                                    <div class="card h-100">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Logo (Dunkel)</h5>
-                                            <div class="logo-preview mb-3 text-center p-3 bg-dark rounded">
-                                                <img src="<?= $settings['logo_dark'] ?? 'images/logo_dark.png' ?>" 
-                                                     alt="Logo (Dunkel)" 
-                                                     id="logoDarkPreview"
-                                                     class="img-fluid"
-                                                     style="max-height: 100px; width: auto;">
-                                            </div>
-                                            <div class="logo-upload text-center">
-                                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('logoDarkInput').click()">
-                                                    <i class="bi bi-upload"></i> Datei auswählen
-                                                </button>
-                                                <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
-                                                <input type="file" class="d-none" id="logoDarkInput" accept="image/*">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="kassenstart_datum" class="form-label small">Startdatum</label>
+                                <input type="date" class="form-control" id="kassenstart_datum" 
+                                       value="<?= date('Y-m-d') ?>" required>
                             </div>
-                            <div class="text-center mt-3">
-                                <button type="button" class="btn btn-primary" onclick="saveLogo()">
-                                    <i class="bi bi-save"></i> Logos speichern
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Weitere Einstellungen -->
-                    <div class="settings-section">
-                        <h3 class="border-bottom pb-2 mb-4">
-                            <i class="bi bi-sliders text-warning"></i> Weitere Einstellungen
-                        </h3>
-                        <div class="settings-content">
-                            <form id="siteSettingsForm" class="card">
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="siteName" class="form-label">Seitenname</label>
-                                        <input type="text" class="form-control" id="siteName" name="site_name" 
-                                               value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>" required>
-                                        <div class="form-text">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Dieser Name wird im Browser-Tab und der Navigation angezeigt.
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">
+                            <div class="col-md-6">
+                                <label for="kassenstart" class="form-label small">Startbetrag</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="kassenstart" 
+                                           value="<?= $kassenstart_betrag ?>" 
+                                           step="0.01" min="0" required>
+                                    <span class="input-group-text">€</span>
+                                    <button class="btn btn-primary btn-sm" id="saveKassenstartBtn">
                                         <i class="bi bi-save"></i> Speichern
                                     </button>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Dieser Betrag wird als Startbetrag im Kassenbuch verwendet.
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Logo Einstellungen -->
+            <div class="admin-section mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-image text-info"></i> Logo Einstellungen
+                </h3>
+                <div class="settings-content">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title small mb-3">Logo (Hell)</h5>
+                                    <div class="logo-preview mb-3 text-center p-3 bg-light rounded">
+                                        <img src="<?= $settings['logo_light'] ?? 'images/logo_light.png' ?>" 
+                                             alt="Logo (Hell)" 
+                                             id="logoLightPreview"
+                                             class="img-fluid"
+                                             style="max-height: 100px; width: auto;">
+                                    </div>
+                                    <div class="logo-upload text-center">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('logoLightInput').click()">
+                                            <i class="bi bi-upload"></i> Datei auswählen
+                                        </button>
+                                        <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
+                                        <input type="file" class="d-none" id="logoLightInput" accept="image/*">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title small mb-3">Logo (Dunkel)</h5>
+                                    <div class="logo-preview mb-3 text-center p-3 bg-dark rounded">
+                                        <img src="<?= $settings['logo_dark'] ?? 'images/logo_dark.png' ?>" 
+                                             alt="Logo (Dunkel)" 
+                                             id="logoDarkPreview"
+                                             class="img-fluid"
+                                             style="max-height: 100px; width: auto;">
+                                    </div>
+                                    <div class="logo-upload text-center">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('logoDarkInput').click()">
+                                            <i class="bi bi-upload"></i> Datei auswählen
+                                        </button>
+                                        <div class="mt-2 text-muted small file-name">Keine ausgewählt</div>
+                                        <input type="file" class="d-none" id="logoDarkInput" accept="image/*">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="saveLogo()">
+                            <i class="bi bi-save"></i> Logos speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weitere Einstellungen -->
+            <div class="admin-section">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-sliders text-warning"></i> Weitere Einstellungen
+                </h3>
+                <div class="settings-content">
+                    <form id="siteSettingsForm" class="card">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="siteName" class="form-label small">Seitenname</label>
+                                <input type="text" class="form-control" id="siteName" name="site_name" 
+                                       value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>" required>
+                                <div class="form-text small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Dieser Name wird im Browser-Tab und der Navigation angezeigt.
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-save"></i> Speichern
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.admin-section h3 {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0 0 0.75rem 0;
+}
+
+.form-label.small {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+.alert {
+    font-size: 0.9rem;
+}
+
+.form-text.small {
+    font-size: 0.8rem;
+}
+
+h5.small {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .bg-light {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.max-width-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

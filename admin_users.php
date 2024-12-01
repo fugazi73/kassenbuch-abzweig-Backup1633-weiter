@@ -15,27 +15,27 @@ include 'includes/header.php';
 <div class="max-width-container py-4">
     <div class="card shadow-sm">
         <div class="card-body">
-            <h1 class="card-title mb-4">
+            <h1 class="h3 card-title mb-4">
                 <i class="bi bi-people-fill text-primary"></i> Benutzerverwaltung
             </h1>
 
             <!-- Benutzer hinzufügen -->
-            <div class="admin-section mb-5">
-                <h3 class="border-bottom pb-2 mb-4">
+            <div class="admin-section mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-person-plus text-success"></i> Neuen Benutzer anlegen
                 </h3>
                 <form id="addUserForm" class="needs-validation" novalidate>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label for="username" class="form-label">Benutzername</label>
+                            <label for="username" class="form-label small">Benutzername</label>
                             <input type="text" class="form-control" id="username" name="username" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="password" class="form-label">Passwort</label>
+                            <label for="password" class="form-label small">Passwort</label>
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         <div class="col-md-4">
-                            <label for="role" class="form-label">Rolle</label>
+                            <label for="role" class="form-label small">Rolle</label>
                             <select class="form-select" id="role" name="role" required>
                                 <option value="">Bitte wählen...</option>
                                 <option value="user">Benutzer</option>
@@ -45,7 +45,7 @@ include 'includes/header.php';
                         </div>
                     </div>
                     <div class="mt-3">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary btn-sm">
                             <i class="bi bi-plus-circle"></i> Benutzer anlegen
                         </button>
                     </div>
@@ -54,12 +54,12 @@ include 'includes/header.php';
 
             <!-- Benutzerliste -->
             <div class="admin-section">
-                <h3 class="border-bottom pb-2 mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-list-ul text-info"></i> Benutzerliste
                 </h3>
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
                             <tr>
                                 <th>Benutzername</th>
                                 <th>Rolle</th>
@@ -169,8 +169,58 @@ include 'includes/header.php';
 </div>
 
 <style>
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.admin-section h3 {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0 0 0.75rem 0;
+}
+
+.table th {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
 .table td {
+    font-size: 0.9rem;
     vertical-align: middle;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+.form-label.small {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.modal-title {
+    font-size: 1rem;
+}
+
+[data-bs-theme="dark"] .table-light {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.max-width-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 </style>
 

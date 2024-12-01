@@ -2,12 +2,9 @@
 // Definiere den Basis-Pfad
 $root_dir = dirname(__DIR__);
 
-// Zuerst die Funktionen laden
-require_once($root_dir . '/includes/functions.php');
-
-// Dann die Konfiguration und Authentifizierung
-require_once($root_dir . '/config.php');
-require_once($root_dir . '/includes/auth.php');
+// Lade die erforderlichen Dateien
+require_once $root_dir . '/includes/init.php';
+require_once $root_dir . '/functions.php';
 
 // Prüfen ob die Funktionen verfügbar sind
 if (!function_exists('getSetting')) {
@@ -28,10 +25,37 @@ $page_title = "Changelog - $site_name";
 $current_page = 'changelog';
 
 // Header einbinden
-require_once($root_dir . '/includes/header.php');
+require_once $root_dir . '/includes/header.php';
 
 // Changelog-Daten
 $changelog = [
+    '1.0.2-dev' => [
+        'date' => '2024-01-27',
+        'changes' => [
+            'Hinzugefügt' => [
+                'Excel-Import in der Hauptnavigation',
+                'Neues einheitliches Design für alle Admin-Bereiche',
+                'Dark Mode Unterstützung für alle Komponenten'
+            ],
+            'Verbessert' => [
+                'Optimierte Navigation mit konsistenter Breite',
+                'Verbesserte Darstellung der Karten und Tabellen',
+                'Einheitliche Schriftgrößen und Abstände',
+                'Bessere Lesbarkeit im Dark Mode'
+            ],
+            'Behoben' => [
+                'Fehler bei der Kassenstart-Berechnung',
+                'Probleme mit der Backup-Funktionalität',
+                'Layout-Probleme in verschiedenen Ansichten',
+                'Pfad-Probleme im Changelog-Bereich'
+            ],
+            'Optimiert' => [
+                'Performance der Datenbank-Abfragen',
+                'Speichernutzung bei Backup-Operationen',
+                'Ladezeiten durch optimierte Ressourcen'
+            ]
+        ]
+    ],
     '1.0' => [
         'date' => '2024-01-29',
         'changes' => [
@@ -62,66 +86,120 @@ $changelog = [
 
 <!-- Hauptinhalt -->
 <main class="changelog-page">
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>Changelog</h1>
-                <p class="lead mb-0">Übersicht aller Änderungen und Verbesserungen</p>
-            </div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="../index.php">Start</a></li>
-                    <li class="breadcrumb-item"><a href="../help.php">Hilfe</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Changelog</li>
-                </ol>
-            </nav>
-        </div>
+    <div class="max-width-container py-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="h3 card-title mb-4">
+                    <i class="bi bi-clock-history text-primary"></i> Changelog
+                </h1>
 
-        <?php foreach ($changelog as $version => $info): ?>
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2 class="h5 mb-0">
-                        Version <?= htmlspecialchars($version) ?>
-                    </h2>
-                    <span class="badge bg-secondary">
-                        <?= htmlspecialchars($info['date']) ?>
-                    </span>
+                <div class="admin-section mb-3">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0 small">
+                            <li class="breadcrumb-item"><a href="../index.php">Start</a></li>
+                            <li class="breadcrumb-item"><a href="../help.php">Hilfe</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Changelog</li>
+                        </ol>
+                    </nav>
                 </div>
-                <div class="card-body">
-                    <?php foreach ($info['changes'] as $category => $changes): ?>
-                        <div class="mb-3">
-                            <h3 class="h6 mb-2">
-                                <?php
-                                $icon = match($category) {
-                                    'Hinzugefügt' => 'bi-plus-circle',
-                                    'Entfernt' => 'bi-dash-circle',
-                                    'Geändert' => 'bi-arrow-repeat',
-                                    'Verbessert' => 'bi-stars',
-                                    'Behoben' => 'bi-bug',
-                                    'Implementiert' => 'bi-check-circle',
-                                    default => 'bi-info-circle'
-                                };
-                                ?>
-                                <i class="bi <?= $icon ?>"></i> 
-                                <?= htmlspecialchars($category) ?>
+
+                <?php foreach ($changelog as $version => $info): ?>
+                    <div class="admin-section mb-4">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h3 class="mb-0">
+                                <i class="bi bi-tag text-success"></i> Version <?= htmlspecialchars($version) ?>
                             </h3>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($changes as $change): ?>
-                                    <li class="mb-1">
-                                        <i class="bi bi-dot"></i>
-                                        <?= htmlspecialchars($change) ?>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
+                            <span class="badge bg-secondary small">
+                                <?= date('d.m.Y', strtotime($info['date'])) ?>
+                            </span>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                        
+                        <?php foreach ($info['changes'] as $category => $changes): ?>
+                            <div class="mb-3">
+                                <h4 class="small fw-bold mb-2">
+                                    <?php
+                                    $icon = match($category) {
+                                        'Hinzugefügt' => 'bi-plus-circle text-success',
+                                        'Entfernt' => 'bi-dash-circle text-danger',
+                                        'Geändert' => 'bi-arrow-repeat text-warning',
+                                        'Verbessert' => 'bi-stars text-info',
+                                        'Behoben' => 'bi-bug text-danger',
+                                        'Implementiert' => 'bi-check-circle text-success',
+                                        'Optimiert' => 'bi-gear text-info',
+                                        default => 'bi-info-circle text-primary'
+                                    };
+                                    ?>
+                                    <i class="bi <?= $icon ?>"></i> 
+                                    <?= htmlspecialchars($category) ?>
+                                </h4>
+                                <ul class="list-unstyled mb-0 ps-3">
+                                    <?php foreach ($changes as $change): ?>
+                                        <li class="mb-1 small text-muted">
+                                            <i class="bi bi-dot"></i>
+                                            <?= htmlspecialchars($change) ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
+        </div>
     </div>
 </main>
 
-<?php
-// Footer einbinden
-require_once($root_dir . '/includes/footer.php');
-?> 
+<style>
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.admin-section h3 {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.admin-section h4 {
+    font-size: 0.9rem;
+}
+
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.breadcrumb {
+    font-size: 0.85rem;
+}
+
+.breadcrumb-item a {
+    text-decoration: none;
+}
+
+.list-unstyled li {
+    line-height: 1.5;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.max-width-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.bi {
+    font-size: 1rem;
+}
+</style>
+
+<?php require_once($root_dir . '/includes/footer.php'); ?> 
