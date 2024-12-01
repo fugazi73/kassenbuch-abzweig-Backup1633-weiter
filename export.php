@@ -10,6 +10,41 @@ if (!is_admin()) {
 
 $page_title = 'Export | Kassenbuch';
 require_once 'includes/header.php';
+
+// Verfügbare Jahre aus der Datenbank ermitteln (mindestens 2023)
+$years_query = $conn->query("
+    SELECT DISTINCT YEAR(datum) as year 
+    FROM kassenbuch_eintraege 
+    UNION 
+    SELECT 2023 as year 
+    ORDER BY year DESC
+");
+$available_years = [];
+while ($row = $years_query->fetch_assoc()) {
+    $available_years[] = $row['year'];
+}
+
+// Aktuelles Jahr und Monat
+$current_year = date('Y');
+$current_month = date('n');
+
+// Monate mit Einträgen ermitteln
+$months_query = $conn->prepare("
+    SELECT DISTINCT 
+        MONTH(datum) as month,
+        COUNT(*) as entry_count
+    FROM kassenbuch_eintraege 
+    WHERE YEAR(datum) = ?
+    GROUP BY MONTH(datum)
+    ORDER BY month ASC
+");
+$months_query->bind_param('i', $current_year);
+$months_query->execute();
+$months_result = $months_query->get_result();
+$active_months = [];
+while ($row = $months_result->fetch_assoc()) {
+    $active_months[$row['month']] = $row['entry_count'];
+}
 ?>
 
 <div class="max-width-container py-4">
@@ -19,46 +54,83 @@ require_once 'includes/header.php';
                 <i class="bi bi-download text-primary"></i> Export
             </h1>
 
-            <!-- Export-Formular -->
-            <div class="admin-section mb-4">
+            <!-- Schnellauswahl -->
+            <div class="export-section mb-4">
                 <h3 class="border-bottom pb-2 mb-3">
-                    <i class="bi bi-file-earmark-arrow-down text-success"></i> Daten exportieren
+                    <i class="bi bi-calendar3 text-success"></i> Schnellauswahl
                 </h3>
-                <form method="get" action="generate_export.php">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label small">Von</label>
-                            <input type="date" class="form-control" name="von" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small">Bis</label>
-                            <input type="date" class="form-control" name="bis" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small">Format</label>
-                            <select class="form-select" name="format" required>
-                                <option value="xlsx">Excel (XLSX)</option>
-                                <option value="csv">CSV</option>
-                                <option value="pdf">PDF</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="bi bi-download"></i> Export erstellen
+                
+                <!-- Jahr Auswahl -->
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <?php foreach ($available_years as $year): ?>
+                        <button type="button" 
+                                class="btn <?= $year == $current_year ? 'btn-primary' : 'btn-outline-secondary' ?> btn-sm year-select"
+                                data-year="<?= $year ?>">
+                            <?= $year ?>
                         </button>
-                    </div>
-                </form>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Monatsübersicht -->
+                <div class="row g-3 mb-4" id="monthsGrid">
+                    <?php 
+                    $months = [
+                        1 => 'Januar', 2 => 'Februar', 3 => 'März',
+                        4 => 'April', 5 => 'Mai', 6 => 'Juni',
+                        7 => 'Juli', 8 => 'August', 9 => 'September',
+                        10 => 'Oktober', 11 => 'November', 12 => 'Dezember'
+                    ];
+                    
+                    foreach ($months as $month_num => $month_name):
+                        $is_future = ($current_year == $year && $month_num > $current_month);
+                        $has_entries = isset($active_months[$month_num]);
+                        $entry_count = $active_months[$month_num] ?? 0;
+                        
+                        // Überspringen wenn keine Einträge und nicht aktuelles/zukünftiges Monat
+                        if (!$has_entries && !$is_future) continue;
+                        
+                        $disabled = $is_future ? 'disabled' : '';
+                        $opacity = (!$has_entries || $is_future) ? 'opacity-50' : '';
+                    ?>
+                        <div class="col-md-3">
+                            <div class="card h-100 <?= $disabled ? 'bg-light' : 'hover-shadow' ?> <?= $opacity ?>">
+                                <button type="button" 
+                                        class="btn btn-link text-decoration-none p-3 text-start month-select" 
+                                        data-month="<?= $month_num ?>"
+                                        <?= $disabled ?>>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h5 class="card-title small mb-1"><?= $month_name ?></h5>
+                                            <div class="text-muted small">
+                                                01.<?= str_pad($month_num, 2, '0', STR_PAD_LEFT) ?>.<?= $current_year ?> - 
+                                                <?= date('t', strtotime("$current_year-$month_num-01")) ?>.<?= str_pad($month_num, 2, '0', STR_PAD_LEFT) ?>.<?= $current_year ?>
+                                            </div>
+                                        </div>
+                                        <?php if ($has_entries): ?>
+                                        <span class="badge bg-primary rounded-pill">
+                                            <?= $entry_count ?>
+                                        </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Export ganzes Jahr -->
+                <button type="button" class="btn btn-primary" id="exportYear">
+                    <i class="bi bi-download"></i> Ganzes Jahr exportieren
+                </button>
             </div>
 
-            <!-- Export-Historie -->
-            <div class="admin-section">
+            <!-- Export Historie -->
+            <div class="export-section">
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-clock-history text-info"></i> Export-Historie
                 </h3>
                 <div class="list-group">
                     <?php
-                    // Prüfe ob die Tabelle existiert
                     $result = $conn->query("SHOW TABLES LIKE 'export_history'");
                     if($result->num_rows > 0):
                         $sql = "SELECT * FROM export_history ORDER BY created_at DESC LIMIT 10";
@@ -74,7 +146,7 @@ require_once 'includes/header.php';
                                             </div>
                                             <div class="small">
                                                 <?= htmlspecialchars($row['date_from']) ?> - 
-                                                <?= htmlspecialchars($row['date_to']) ?> 
+                                                <?= htmlspecialchars($row['date_to']) ?>
                                                 <span class="badge bg-secondary"><?= strtoupper($row['format']) ?></span>
                                             </div>
                                         </div>
@@ -103,16 +175,137 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- jQuery einbinden -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-download"></i> Export erstellen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm" action="generate_export.php" method="get">
+                    <input type="hidden" name="von" id="exportVon">
+                    <input type="hidden" name="bis" id="exportBis">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small">Zeitraum</label>
+                        <div id="exportDateRange" class="form-control-plaintext"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Format</label>
+                        <select class="form-select" name="format" required>
+                            <option value="xlsx">Excel (XLSX)</option>
+                            <option value="csv">CSV</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" form="exportForm" class="btn btn-primary btn-sm">
+                    <i class="bi bi-download"></i> Exportieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal initialisieren
+    const exportModal = new bootstrap.Modal(document.getElementById('exportModal'));
+    let selectedYear = <?= $current_year ?>;
+
+    // Jahr auswählen
+    document.querySelectorAll('.year-select').forEach(button => {
+        button.addEventListener('click', function() {
+            selectedYear = this.dataset.year;
+            document.querySelectorAll('.year-select').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-primary');
+            
+            // AJAX Aufruf für neue Monate
+            fetch('get_active_months.php?year=' + selectedYear)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('monthsGrid').innerHTML = data;
+                    updateMonthsGrid();
+                });
+        });
+    });
+
+    // Monat auswählen
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.month-select:not(:disabled)')) {
+            const button = e.target.closest('.month-select');
+            const month = button.dataset.month;
+            const startDate = `01.${String(month).padStart(2, '0')}.${selectedYear}`;
+            const lastDay = new Date(selectedYear, month, 0).getDate();
+            const endDate = `${lastDay}.${String(month).padStart(2, '0')}.${selectedYear}`;
+            
+            document.getElementById('exportDateRange').textContent = `${startDate} - ${endDate}`;
+            document.getElementById('exportVon').value = startDate;
+            document.getElementById('exportBis').value = endDate;
+            exportModal.show();
+        }
+    });
+
+    // Ganzes Jahr exportieren
+    document.getElementById('exportYear').addEventListener('click', function() {
+        const startDate = `01.01.${selectedYear}`;
+        const endDate = `31.12.${selectedYear}`;
+        
+        document.getElementById('exportDateRange').textContent = `${startDate} - ${endDate}`;
+        document.getElementById('exportVon').value = startDate;
+        document.getElementById('exportBis').value = endDate;
+        exportModal.show();
+    });
+
+    function updateMonthsGrid() {
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        
+        document.querySelectorAll('.month-select').forEach(button => {
+            const month = button.dataset.month;
+            const isFuture = selectedYear == currentYear && month > currentMonth;
+            
+            if (isFuture) {
+                button.disabled = true;
+                button.closest('.card').classList.add('bg-light', 'opacity-50');
+                button.closest('.card').classList.remove('hover-shadow');
+            } else {
+                button.disabled = false;
+                button.closest('.card').classList.remove('bg-light', 'opacity-50');
+                button.closest('.card').classList.add('hover-shadow');
+            }
+        });
+    }
+});
+</script>
+
 <style>
 .card-title {
     font-size: 1.1rem;
     font-weight: 500;
 }
 
-.admin-section h3 {
+h3 {
     font-size: 0.95rem;
     font-weight: 500;
-    margin: 0 0 0.75rem 0;
 }
 
 .form-label.small {
@@ -125,22 +318,29 @@ require_once 'includes/header.php';
     font-size: 0.85rem;
 }
 
-.list-group-item {
-    padding: 0.75rem 1rem;
+.hover-shadow {
+    transition: all 0.2s ease-in-out;
 }
 
-.badge {
-    font-weight: 500;
-    font-size: 0.75rem;
+.hover-shadow:hover {
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.1)!important;
+    transform: translateY(-1px);
 }
 
-[data-bs-theme="dark"] .list-group-item {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+.month-select {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: none;
+    cursor: pointer;
 }
 
-[data-bs-theme="dark"] .list-group-item:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+.month-select:disabled {
+    cursor: not-allowed;
+}
+
+[data-bs-theme="dark"] .bg-light {
+    background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 .max-width-container {
