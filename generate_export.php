@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Color;
 
 if (!is_admin()) {
     handle_forbidden();
@@ -199,11 +200,18 @@ try {
         $sheet->setCellValue("B$row", $date);
         $sheet->setCellValue("C$row", $entry['bemerkung']);
         
+        // Einnahmen in Grün
         if ($entry['einnahme'] > 0) {
             $sheet->setCellValue("D$row", $entry['einnahme']);
+            $sheet->getStyle("D$row")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
+            $sheet->getStyle("D$row")->getFont()->setBold(true);
         }
+
+        // Ausgaben in Rot
         if ($entry['ausgabe'] > 0) {
             $sheet->setCellValue("E$row", $entry['ausgabe']);
+            $sheet->getStyle("E$row")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
+            $sheet->getStyle("E$row")->getFont()->setBold(true);
         }
         
         $row++;
@@ -221,11 +229,19 @@ try {
     $sheet->mergeCells("A$saldoRow:D$saldoRow");
     $sheet->setCellValue("A$saldoRow", 'Saldo');
     $sheet->setCellValue("E$saldoRow", "=D$sumRow-E$sumRow");
-    $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setRGB('008000');
+    
+    // Formatiere Summen und Saldo
+    $sheet->getStyle("D$sumRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
+    $sheet->getStyle("E$sumRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
+    if ($sheet->getCell("E$saldoRow")->getCalculatedValue() >= 0) {
+        $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
+    } else {
+        $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
+    }
     
     // Formatierung
     // Währungsformat mit genau 2 Dezimalstellen
-    $numberFormat = \PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2;
+    $numberFormat = NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2;
     $sheet->getStyle('E3:E6')->getNumberFormat()->setFormatCode($numberFormat . ' €');
     $sheet->getStyle("D9:E$lastRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
     $sheet->getStyle("D$sumRow:E$saldoRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
@@ -250,6 +266,30 @@ try {
         'font' => ['bold' => true],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']]
     ]);
+    
+    // Formatierung der Spalten
+    $sheet->getStyle('A1:E1')->getFont()->setBold(true);
+    $sheet->getStyle('C:D')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2);
+    $sheet->getStyle('E:E')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2);
+
+    // Farbliche Formatierung für Einnahmen/Ausgaben/Kassenstand
+    foreach ($sheet->getRowIterator(9, $lastRow) as $row) {
+        $rowIndex = $row->getRowIndex();
+        
+        // Einnahmen grün
+        $einnahme = $sheet->getCell('D'.$rowIndex)->getValue();
+        if ($einnahme > 0) {
+            $sheet->getStyle('D'.$rowIndex)->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
+            $sheet->getStyle('D'.$rowIndex)->getFont()->setBold(true);
+        }
+        
+        // Ausgaben rot
+        $ausgabe = $sheet->getCell('E'.$rowIndex)->getValue();
+        if ($ausgabe > 0) {
+            $sheet->getStyle('E'.$rowIndex)->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
+            $sheet->getStyle('E'.$rowIndex)->getFont()->setBold(true);
+        }
+    }
     
     // Speichere Datei je nach Format
     switch($format) {
@@ -392,8 +432,20 @@ try {
                     $pdf->Cell($w[0], 8, $counter, 1, 0, 'C', $fill);
                     $pdf->Cell($w[1], 8, $date, 1, 0, 'L', $fill);
                     $pdf->Cell($w[2], 8, $rowData['bemerkung'], 1, 0, 'L', $fill);
+                    
+                    // Einnahmen in Grün
+                    if ($rowData['einnahme'] > 0) {
+                        $pdf->SetTextColor(0, 128, 0);
+                    }
                     $pdf->Cell($w[3], 8, $einnahme, 1, 0, 'R', $fill);
+                    $pdf->SetTextColor(0, 0, 0);
+                    
+                    // Ausgaben in Rot
+                    if ($rowData['ausgabe'] > 0) {
+                        $pdf->SetTextColor(128, 0, 0);
+                    }
                     $pdf->Cell($w[4], 8, $ausgabe, 1, 0, 'R', $fill);
+                    $pdf->SetTextColor(0, 0, 0);
                 } else {
                     $pdf->Cell($w[0], 8, $counter, 1, 0, 'C', $fill);
                     $pdf->Cell($w[1], 8, '', 1, 0, 'L', $fill);

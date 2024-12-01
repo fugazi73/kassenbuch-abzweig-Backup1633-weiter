@@ -189,9 +189,15 @@ function buildPaginationUrl($page) {
                     <?php endif; ?>
                     <td><?= date('d.m.Y', strtotime($entry['datum'])) ?></td>
                     <td><?= htmlspecialchars($entry['bemerkung']) ?></td>
-                    <td class="text-end"><?= number_format($entry['einnahme'], 2, ',', '.') ?> €</td>
-                    <td class="text-end"><?= number_format($entry['ausgabe'], 2, ',', '.') ?> €</td>
-                    <td class="text-end"><?= number_format($entry['kassenstand'], 2, ',', '.') ?> €</td>
+                    <td class="text-end <?= $entry['einnahme'] > 0 ? 'text-success fw-bold' : '' ?>">
+                        <?= number_format($entry['einnahme'], 2, ',', '.') ?> €
+                    </td>
+                    <td class="text-end <?= $entry['ausgabe'] > 0 ? 'text-danger fw-bold' : '' ?>">
+                        <?= number_format($entry['ausgabe'], 2, ',', '.') ?> €
+                    </td>
+                    <td class="text-end <?= $entry['kassenstand'] >= 0 ? 'text-success' : 'text-danger' ?> fw-bold">
+                        <?= number_format($entry['kassenstand'], 2, ',', '.') ?> €
+                    </td>
                     <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
                     <td class="text-end">
                         <div class="btn-group">
