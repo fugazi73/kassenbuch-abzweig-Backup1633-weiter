@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // Theme Management Klasse
 class ThemeManager {
     constructor() {
@@ -9,35 +8,38 @@ class ThemeManager {
             DARK: 'dark'
         };
         
+        // Sofort das Theme setzen, ohne auf DOMContentLoaded zu warten
         this.init();
     }
 
     init() {
-        if (!this.themeToggle) return;
-        
-        // Initial Theme setzen
+        // Immer das Theme setzen, auch wenn kein Toggle-Button existiert
         this.setTheme(this.getPreferredTheme());
         
-        // Event Listener
-        this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        if (this.themeToggle) {
+            // Event Listener
+            this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+        
+        // System Theme Change Listener
         this.setupSystemThemeListener();
     }
 
     // Theme aus Cookie oder System-Präferenz
     getPreferredTheme() {
-=======
-document.addEventListener('DOMContentLoaded', function() {
-    const themeToggle = document.getElementById('themeToggle');
-    const icon = themeToggle.querySelector('i');
-    
-    // Theme aus Cookie laden oder System-Präferenz nutzen
-    const getPreferredTheme = () => {
->>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
-        const storedTheme = document.cookie.match(/theme=([^;]+)/)?.[1];
-        if (storedTheme) {
-            return storedTheme;
+        // Erst nach dem Cookie suchen
+        const cookies = document.cookie.split(';');
+        const themeCookie = cookies.find(cookie => cookie.trim().startsWith('theme='));
+        
+        if (themeCookie) {
+            const theme = themeCookie.split('=')[1].trim();
+            // Nur gültige Themes zurückgeben
+            if (theme === this.THEMES.LIGHT || theme === this.THEMES.DARK) {
+                return theme;
+            }
         }
-<<<<<<< HEAD
+        
+        // Sonst System-Präferenz nutzen
         return window.matchMedia('(prefers-color-scheme: dark)').matches 
             ? this.THEMES.DARK 
             : this.THEMES.LIGHT;
@@ -54,26 +56,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Theme setzen und UI aktualisieren
     setTheme(theme) {
-=======
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    };
+        // Sicherstellen, dass wir ein gültiges Theme haben
+        if (theme !== this.THEMES.LIGHT && theme !== this.THEMES.DARK) {
+            theme = this.THEMES.LIGHT; // Fallback zu Light-Theme
+        }
 
-    // Initial Theme setzen
-    setTheme(getPreferredTheme());
-    
-    themeToggle.addEventListener('click', function() {
-        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-    });
-    
-    function setTheme(theme) {
->>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
         // Bootstrap Theme setzen
         document.documentElement.setAttribute('data-bs-theme', theme);
         
         // Theme-spezifische Klassen aktualisieren
-<<<<<<< HEAD
         this.updateBodyClasses(theme);
         this.updateNavigation(theme);
         this.updateCards(theme);
@@ -145,95 +136,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateLogo(theme) {
         const logo = document.getElementById('siteLogo');
-        if (logo) {
+        if (logo && logo instanceof HTMLImageElement) {
             const logoPath = theme === this.THEMES.DARK 
-=======
-        if (theme === 'dark') {
-            document.body.classList.add('bg-dark');
-            document.body.classList.add('text-light');
-            
-            // Navbar/Header anpassen
-            document.querySelectorAll('.navbar, header').forEach(el => {
-                el.classList.remove('bg-light', 'navbar-light');
-                el.classList.add('bg-dark', 'navbar-dark');
-            });
-            
-            // Cards anpassen
-            document.querySelectorAll('.card').forEach(card => {
-                card.classList.add('bg-dark', 'border-secondary');
-                card.classList.add('text-light');
-            });
-            
-            // Dropdowns anpassen
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                menu.classList.add('dropdown-menu-dark');
-            });
-            
-            // Buttons anpassen
-            document.querySelectorAll('.btn-outline-secondary').forEach(btn => {
-                btn.classList.add('btn-outline-light');
-                btn.classList.remove('btn-outline-secondary');
-            });
-        } else {
-            document.body.classList.remove('bg-dark');
-            document.body.classList.remove('text-light');
-            
-            // Navbar/Header zurücksetzen
-            document.querySelectorAll('.navbar, header').forEach(el => {
-                el.classList.add('bg-light', 'navbar-light');
-                el.classList.remove('bg-dark', 'navbar-dark');
-            });
-            
-            // Cards zurücksetzen
-            document.querySelectorAll('.card').forEach(card => {
-                card.classList.remove('bg-dark', 'border-secondary');
-                card.classList.remove('text-light');
-            });
-            
-            // Dropdowns zurücksetzen
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                menu.classList.remove('dropdown-menu-dark');
-            });
-            
-            // Buttons zurücksetzen
-            document.querySelectorAll('.btn-outline-light').forEach(btn => {
-                btn.classList.add('btn-outline-secondary');
-                btn.classList.remove('btn-outline-light');
-            });
-        }
-        
-        // Theme in Cookie speichern
-        document.cookie = `theme=${theme};path=/;max-age=31536000`; // 1 Jahr
-        
-        // UI aktualisieren
-        updateIcon(theme);
-        updateLogo(theme);
-    }
-    
-    function updateIcon(theme) {
-        icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars';
-    }
-    
-    function updateLogo(theme) {
-        const logo = document.getElementById('siteLogo');
-        if (logo) {
-            const logoPath = theme === 'dark' 
->>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
                 ? logo.getAttribute('data-dark-src')
                 : logo.getAttribute('data-light-src');
-            logo.src = logoPath;
+            if (logoPath) {
+                logo.src = logoPath;
+            }
         }
     }
-<<<<<<< HEAD
 
     // Theme Persistenz
     saveTheme(theme) {
-        document.cookie = `theme=${theme};path=/;max-age=31536000`; // 1 Jahr
+        // Sicheres Cookie-Setzen mit allen notwendigen Optionen
+        const date = new Date();
+        date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 Jahr
+        const expires = "expires=" + date.toUTCString();
+        document.cookie = `theme=${theme};${expires};path=/;SameSite=Strict`;
     }
 
     // System Theme Change Listener
     setupSystemThemeListener() {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+            // Nur ändern wenn kein Theme explizit gesetzt wurde
             if (!document.cookie.includes('theme=')) {
                 this.setTheme(e.matches ? this.THEMES.DARK : this.THEMES.LIGHT);
             }
@@ -241,27 +167,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-// Theme Manager initialisieren wenn DOM geladen ist
-document.addEventListener('DOMContentLoaded', () => {
-    new ThemeManager();
-=======
-    
-    // System Dark Mode Änderungen überwachen
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!document.cookie.includes('theme=')) {
-            setTheme(e.matches ? 'dark' : 'light');
-        }
-    });
-<<<<<<< HEAD
->>>>>>> 872be59ca604b9eee638b1d18a3feb2fdc091d7f
-}); 
-=======
-}); 
-
-// Am Ende der Datei hinzufügen
-window.toggleTheme = function() {
-    const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-}; 
->>>>>>> 8a89f0d (neuster stand dynamishce tabelle werde hinzugefügt erste teile vorhanden)
+// Theme Manager sofort initialisieren
+const themeManager = new ThemeManager();

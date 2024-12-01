@@ -1,0 +1,323 @@
+/* Kassenbuch Custom Styles - Aufbauend auf Bootstrap 5.3 */
+
+:root {
+  --kb-primary: #2563eb;
+  --kb-primary-light: #3b82f6;
+  --kb-gray-100: #f3f4f6;
+  --kb-gray-200: #e5e7eb;
+  --kb-gray-300: #d1d5db;
+  --kb-gray-400: #9ca3af;
+  --kb-gray-500: #6b7280;
+  --kb-gray-600: #4b5563;
+  --kb-gray-700: #374151;
+  --kb-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --kb-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --kb-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Dunkler Modus */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --kb-body-bg: #1f2937;
+    --kb-body-color: #f3f4f6;
+    --kb-primary: #60a5fa;
+    --kb-primary-light: #93c5fd;
+    --kb-gray-100: #374151;
+    --kb-gray-200: #4b5563;
+    --kb-gray-300: #6b7280;
+    --kb-gray-400: #9ca3af;
+    --kb-gray-500: #d1d5db;
+    --kb-gray-600: #e5e7eb;
+    --kb-gray-700: #f3f4f6;
+  }
+}
+
+/* ========== Layout & Container ========== */
+.kb-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.kb-container-sm {
+  max-width: 768px;
+}
+
+/* ========== Header ========== */
+.kb-header {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  background-color: var(--bs-body-bg);
+  border-bottom: 1px solid var(--kb-gray-200);
+  padding: 1rem 0;
+  box-shadow: var(--kb-shadow-sm);
+}
+
+/* ========== Navigation ========== */
+.kb-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .kb-nav {
+    display: none;
+  }
+  
+  .kb-nav.show {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--bs-body-bg);
+    padding: 1rem;
+    border-bottom: 1px solid var(--kb-gray-200);
+    box-shadow: var(--kb-shadow-md);
+    animation: slideDown 0.2s ease-out;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== Tabellen ========== */
+.kb-table {
+  margin-bottom: 1.5rem;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: var(--kb-shadow);
+}
+
+.kb-table th {
+  background-color: var(--kb-gray-100);
+  font-weight: 600;
+  padding: 1rem;
+  border-bottom: 2px solid var(--kb-gray-200);
+}
+
+.kb-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--kb-gray-200);
+  transition: background-color 0.2s;
+}
+
+.kb-table tr:hover td {
+  background-color: var(--kb-gray-100);
+}
+
+@media (max-width: 768px) {
+  .kb-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .kb-table td, 
+  .kb-table th {
+    white-space: nowrap;
+    min-width: 120px;
+  }
+}
+
+.kb-table .number-cell {
+  text-align: right;
+  font-family: var(--bs-font-monospace);
+}
+
+.kb-table .date-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.kb-table .action-cell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ========== Forms ========== */
+.kb-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.kb-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.kb-form-label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--bs-gray-700);
+}
+
+.kb-form-label.required::after {
+  content: "*";
+  color: var(--bs-danger);
+  margin-left: 0.25rem;
+}
+
+.kb-form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--kb-gray-300);
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.kb-form-control:focus {
+  border-color: var(--kb-primary-light);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+/* ========== Cards & Sections ========== */
+.kb-card {
+  background-color: var(--kb-body-bg);
+  border: 1px solid var(--kb-gray-200);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--kb-shadow-md);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.kb-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--kb-shadow-lg);
+}
+
+.kb-section {
+  margin-bottom: 2rem;
+}
+
+.kb-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--bs-border-color);
+}
+
+/* ========== Status Badges ========== */
+.kb-status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+.kb-status-pending {
+  background-color: rgba(var(--bs-warning-rgb), 0.1);
+  color: var(--bs-warning);
+}
+
+.kb-status-approved {
+  background-color: rgba(var(--bs-success-rgb), 0.1);
+  color: var(--bs-success);
+}
+
+.kb-status-rejected {
+  background-color: rgba(var(--bs-danger-rgb), 0.1);
+  color: var(--bs-danger);
+}
+
+/* ========== Utilities ========== */
+.kb-text-right {
+  text-align: right !important;
+}
+
+.kb-text-center {
+  text-align: center !important;
+}
+
+.kb-mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.kb-mt-2 {
+  margin-top: 1rem !important;
+}
+
+.kb-mb-2 {
+  margin-bottom: 1rem !important;
+}
+
+/* ========== Print Styles ========== */
+@media print {
+  .kb-header,
+  .kb-nav,
+  .kb-actions,
+  .no-print {
+    display: none !important;
+  }
+  
+  .kb-container {
+    max-width: 100%;
+    padding: 0;
+  }
+  
+  .kb-table th {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+  
+  .kb-card {
+    border: none;
+    padding: 0;
+  }
+}
+
+/* ========== Buttons ========== */
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.kb-btn-primary {
+  background-color: var(--kb-primary);
+  color: white;
+  border: none;
+}
+
+.kb-btn-primary:hover {
+  background-color: var(--kb-primary-light);
+  transform: translateY(-1px);
+}
+
+/* Verbesserte Links */
+.kb-link {
+  color: var(--kb-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.kb-link:hover {
+  color: var(--kb-primary-light);
+  text-decoration: underline;
+}
+  
