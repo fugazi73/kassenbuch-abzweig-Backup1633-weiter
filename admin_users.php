@@ -1,304 +1,308 @@
 <?php
-session_start();
-require_once 'includes/init.php';  // Lädt die Settings-Variablen
-require_once 'config.php';
+require_once 'includes/init.php';
 require_once 'functions.php';
 
-// Prüfe Berechtigungen
+// Prüfe Berechtigung
 if (!is_admin()) {
-    handle_forbidden();
+    header('Location: error.php?message=Keine Berechtigung');
+    exit;
 }
 
-// Setze den Seitentitel mit dem dynamischen Seitennamen
-$page_title = $site_name ? "Benutzerverwaltung - " . htmlspecialchars($site_name) : "Benutzerverwaltung";
-require_once 'includes/header.php';
-
-// Benutzer aus der Datenbank abrufen
-$users = $conn->query("SELECT id, username, role FROM benutzer ORDER BY username");
-
-function getRoleBadgeClass($role) {
-    switch($role) {
-        case 'admin':
-            return 'text-bg-primary';
-        case 'chef':
-            return 'text-bg-success';
-        default:
-            return 'text-bg-secondary';
-    }
-}
-
-function getRoleDisplayName($role) {
-    switch($role) {
-        case 'admin':
-            return 'Administrator';
-        case 'chef':
-            return 'Chef';
-        default:
-            return 'Benutzer';
-    }
-}
+$page_title = "Benutzerverwaltung - " . htmlspecialchars($site_name ?? '');
+include 'includes/header.php';
 ?>
 
-<div class="container mt-4">
-    <!-- Header-Bereich -->
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
-            <h2 class="display-6"><i class="bi bi-people"></i> Benutzerverwaltung</h2>
-            <p class="lead text-muted">Verwalten Sie hier alle Benutzerkonten des Systems</p>
-        </div>
-        <div class="col-md-4 text-md-end">
-            <button type="button" class="btn btn-primary btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#newUserModal">
-                <i class="bi bi-person-plus"></i> Neuer Benutzer
-            </button>
-        </div>
-    </div>
+<div class="max-width-container py-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h1 class="card-title mb-4">
+                <i class="bi bi-people-fill text-primary"></i> Benutzerverwaltung
+            </h1>
 
-    <!-- Benutzerliste -->
-    <div class="card shadow-sm border-0 rounded-3">
-        <div class="card-body p-4">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light text-secondary small">
-                        <tr>
-                            <th scope="col" class="border-0">Benutzername</th>
-                            <th scope="col" class="border-0">Rolle</th>
-                            <th scope="col" class="border-0 text-end">Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody class="border-0">
-                        <?php while ($user = $users->fetch_assoc()): ?>
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-person-circle text-muted me-2"></i>
-                                    <?= htmlspecialchars($user['username']) ?>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge <?= getRoleBadgeClass($user['role']) ?>">
-                                    <?= getRoleDisplayName($user['role']) ?>
-                                </span>
-                            </td>
-                            <td class="text-end">
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                                            onclick="editUser(<?= $user['id'] ?>)" 
-                                            title="Benutzer bearbeiten">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </button>
-                                    <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                            onclick="deleteUser(<?= $user['id'] ?>)"
-                                            title="Benutzer löschen">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </button>
+            <!-- Benutzer hinzufügen -->
+            <div class="admin-section mb-5">
+                <h3 class="border-bottom pb-2 mb-4">
+                    <i class="bi bi-person-plus text-success"></i> Neuen Benutzer anlegen
+                </h3>
+                <form id="addUserForm" class="needs-validation" novalidate>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="username" class="form-label">Benutzername</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="password" class="form-label">Passwort</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="role" class="form-label">Rolle</label>
+                            <select class="form-select" id="role" name="role" required>
+                                <option value="">Bitte wählen...</option>
+                                <option value="user">Benutzer</option>
+                                <option value="chef">Chef</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Benutzer anlegen
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Benutzerliste -->
+            <div class="admin-section">
+                <h3 class="border-bottom pb-2 mb-4">
+                    <i class="bi bi-list-ul text-info"></i> Benutzerliste
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Benutzername</th>
+                                <th>Rolle</th>
+                                <th>Letzter Login</th>
+                                <th>Status</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $result = $conn->query("SELECT * FROM benutzer ORDER BY username");
+                            while ($user = $result->fetch_assoc()):
+                                // Rolle in lesbaren Text umwandeln
+                                $role_text = '';
+                                switch($user['role']) {
+                                    case 'admin':
+                                        $role_text = 'Administrator';
+                                        $role_badge = 'danger';
+                                        break;
+                                    case 'chef':
+                                        $role_text = 'Chef';
+                                        $role_badge = 'success';
+                                        break;
+                                    default:
+                                        $role_text = 'Benutzer';
+                                        $role_badge = 'primary';
+                                }
+                            ?>
+                            <tr>
+                                <td><?= htmlspecialchars($user['username']) ?></td>
+                                <td><span class="badge bg-<?= $role_badge ?>"><?= $role_text ?></span></td>
+                                <td><?= $user['last_login'] ? date('d.m.Y H:i', strtotime($user['last_login'])) : 'Nie' ?></td>
+                                <td>
+                                    <?php if ($user['active']): ?>
+                                        <span class="badge bg-success">Aktiv</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger">Inaktiv</span>
                                     <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                onclick="editUser(<?= $user['id'] ?>)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteUser(<?= $user['id'] ?>)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal für neuen Benutzer -->
-<div class="modal fade" id="newUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow border-0">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title fs-4">
-                    <i class="bi bi-person-plus"></i> Neuer Benutzer
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" id="createUserForm" onsubmit="return submitCreateUser(event)">
-                <div class="modal-body p-4">
-                    <div class="mb-4">
-                        <label class="form-label">Benutzername</label>
-                        <input type="text" name="username" class="form-control form-control-lg" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Passwort</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Rolle</label>
-                        <select name="role" class="form-select">
-                            <option value="user">Benutzer</option>
-                            <option value="admin">Administrator</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Speichern
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal für Benutzer bearbeiten -->
+<!-- Benutzer bearbeiten Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow border-0">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title fs-4">
-                    <i class="bi bi-pencil"></i> Benutzer bearbeiten
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square"></i> Benutzer bearbeiten
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editUserForm" onsubmit="return submitEditUser(event)">
-                <input type="hidden" id="edit_user_id" name="id">
-                <div class="modal-body p-4">
-                    <div class="mb-4">
-                        <label class="form-label">Benutzername</label>
-                        <input type="text" id="edit_username" name="username" class="form-control form-control-lg" required>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="edit_user_id" name="id">
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">Benutzername</label>
+                        <input type="text" class="form-control" id="edit_username" name="username" required>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label">Neues Passwort (optional)</label>
-                        <input type="password" id="edit_password" name="password" class="form-control form-control-lg">
+                    <div class="mb-3">
+                        <label for="edit_password" class="form-label">Neues Passwort (optional)</label>
+                        <input type="password" class="form-control" id="edit_password" name="password">
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label">Rolle</label>
-                        <select id="edit_role" name="role" class="form-select form-select-lg">
+                    <div class="mb-3">
+                        <label for="edit_role" class="form-label">Rolle</label>
+                        <select class="form-select" id="edit_role" name="role" required>
                             <option value="user">Benutzer</option>
-                            <option value="admin">Administrator</option>
                             <option value="chef">Chef</option>
+                            <option value="admin">Administrator</option>
                         </select>
                     </div>
-                </div>
-                <div class="modal-footer border-top-0">
-                    <button type="button" class="btn btn-light btn-lg" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="bi bi-save"></i> Speichern
-                    </button>
-                </div>
-            </form>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="edit_active" name="active">
+                            <label class="form-check-label" for="edit_active">Aktiv</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveUser()">Speichern</button>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+.table td {
+    vertical-align: middle;
+}
+</style>
 
 <script>
-// Funktion für das Erstellen eines neuen Benutzers
-function submitCreateUser(event) {
-    event.preventDefault();
-    
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    fetch('save_user.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Netzwerk-Antwort war nicht ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('newUserModal'));
-            modal.hide();
-            location.reload();
-        } else {
-            throw new Error(data.message || 'Fehler beim Speichern des Benutzers');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten: ' + error.message);
-    });
-
-    return false;
-}
-
-// Funktion zum Bearbeiten eines Benutzers
-function editUser(id) {
-    fetch('get_user.php?id=' + id)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('edit_user_id').value = data.user.id;
-                document.getElementById('edit_username').value = data.user.username;
-                document.getElementById('edit_role').value = data.user.role;
-                document.getElementById('edit_password').value = '';
-                
-                const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
-                editModal.show();
-            } else {
-                alert('Fehler beim Laden der Benutzerdaten');
+// JavaScript-Code für die Benutzerverwaltung
+document.addEventListener('DOMContentLoaded', function() {
+    // Formular-Validierung aktivieren
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ein Fehler ist aufgetreten');
+            form.classList.add('was-validated');
         });
-}
-
-// Funktion zum Speichern der Bearbeitung
-function submitEditUser(event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-
-    fetch('update_user.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
-            modal.hide();
-            location.reload();
-        } else {
-            alert(data.message || 'Fehler beim Aktualisieren des Benutzers');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ein Fehler ist aufgetreten');
     });
 
-    return false;
-}
+    // Benutzer hinzufügen
+    document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!this.checkValidity()) return;
 
-// Funktion zum Löschen eines Benutzers
-function deleteUser(id) {
-    if (confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
-        const formData = new FormData();
-        formData.append('id', id);
+        const formData = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: document.getElementById('role').value
+        };
 
-        fetch('delete_user.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Netzwerk-Antwort war nicht ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
+        try {
+            const response = await fetch('add_user.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
                 location.reload();
             } else {
-                throw new Error(data.message || 'Fehler beim Löschen des Benutzers');
+                alert(result.message || 'Fehler beim Anlegen des Benutzers');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ein Fehler ist aufgetreten: ' + error.message);
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Anlegen des Benutzers');
+        }
+    });
+});
+
+// Benutzer bearbeiten
+async function editUser(id) {
+    try {
+        const response = await fetch(`get_user.php?id=${id}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('edit_user_id').value = data.user.id;
+            document.getElementById('edit_username').value = data.user.username;
+            document.getElementById('edit_role').value = data.user.role;
+            document.getElementById('edit_active').checked = data.user.active == 1;
+            
+            const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Laden der Benutzerdaten');
+    }
+}
+
+// Benutzer speichern
+async function saveUser() {
+    const formData = {
+        id: document.getElementById('edit_user_id').value,
+        username: document.getElementById('edit_username').value,
+        password: document.getElementById('edit_password').value,
+        role: document.getElementById('edit_role').value,
+        active: document.getElementById('edit_active').checked ? 1 : 0
+    };
+
+    try {
+        const response = await fetch('update_user.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
         });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Fehler beim Speichern der Änderungen');
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern der Änderungen');
+    }
+}
+
+// Benutzer löschen
+async function deleteUser(id) {
+    if (!confirm('Möchten Sie diesen Benutzer wirklich löschen?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('delete_user.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: id })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Fehler beim Löschen des Benutzers');
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        alert('Fehler beim Löschen des Benutzers');
     }
 }
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
+<?php include 'includes/footer.php'; ?>

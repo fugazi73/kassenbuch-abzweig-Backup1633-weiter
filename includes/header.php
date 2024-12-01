@@ -57,17 +57,47 @@ $basePath = $isInSubfolder ? '..' : '.';
     <?php if ($current_page === 'admin'): ?>
         <script src="<?= $basePath ?>/js/admin.js" defer></script>
     <?php endif; ?>
+    <style>
+    .max-width-container {
+        max-width: 1320px;
+        margin: 0 auto;
+        width: 100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .navbar {
+        padding: 0.5rem 0;
+        background-color: var(--bs-body-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .navbar-brand {
+        margin-right: 2rem;
+        padding: 0;
+    }
+    .navbar-brand img {
+        height: 40px;
+        width: auto;
+        display: block;
+    }
+    .navbar .max-width-container {
+        display: flex;
+        align-items: center;
+    }
+    .navbar-collapse {
+        flex-grow: 1;
+    }
+    </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
     <header>
-        <nav class="navbar navbar-expand-lg bg-body-tertiary border-top border-bottom">
-            <div class="container">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="max-width-container">
                 <a class="navbar-brand" href="<?= $basePath ?>/index.php">
                     <img src="<?= $basePath ?>/<?= $savedTheme === 'dark' ? $logo_dark : $logo_light ?>" 
-                         alt="Logo" height="40" class="d-inline-block align-text-top">
+                         alt="Logo">
                 </a>
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
@@ -187,6 +217,6 @@ $basePath = $isInSubfolder ? '..' : '.';
     </header>
 
     <main class="flex-grow-1">
-        <div class="container py-4">
+        <div class="max-width-container py-4">
 </body>
 </html> 

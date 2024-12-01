@@ -106,21 +106,52 @@ function createFilesBackup($filename) {
     try {
         $zip = new ZipArchive();
         if ($zip->open($filename, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-            // Dateien hinzufügen
-            $files = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator('.'),
-                RecursiveIteratorIterator::LEAVES_ONLY
-            );
+            // Liste der wichtigen Verzeichnisse und Dateien
+            $important_paths = [
+                'js/',
+                'includes/',
+                'styles/',
+                'assets/',
+                'images/',
+                'config.php',
+                'functions.php',
+                'index.php',
+                'kassenbuch.php',
+                'settings.php',
+                'import_excel.php',
+                'export.php',
+                'save_kassenstart.php',
+                'save_entry.php',
+                'delete_entry.php',
+                'update_entry.php',
+                'save_logo.php',
+                'save_site_settings.php'
+            ];
 
-            foreach ($files as $file) {
-                if (!$file->isDir()) {
-                    $filePath = $file->getRealPath();
-                    $relativePath = substr($filePath, strlen(realpath('.')) + 1);
-                    
-                    // Bestimmte Verzeichnisse und Dateien ausschließen
-                    if (!preg_match('/(^|\\/)(backups|temp|\.git|\.)/i', $relativePath)) {
-                        $zip->addFile($filePath, $relativePath);
+            foreach ($important_paths as $path) {
+                $fullPath = __DIR__ . '/' . $path;
+                
+                if (is_dir($fullPath)) {
+                    // Wenn es ein Verzeichnis ist, füge alle Dateien darin hinzu
+                    $files = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($fullPath),
+                        RecursiveIteratorIterator::LEAVES_ONLY
+                    );
+
+                    foreach ($files as $file) {
+                        if (!$file->isDir()) {
+                            $filePath = $file->getRealPath();
+                            $relativePath = substr($filePath, strlen(__DIR__) + 1);
+                            
+                            // Ausschließen von temporären und versteckten Dateien
+                            if (!preg_match('/(^|\/)(\.|\.\.|temp|\.git|\.DS_Store|Thumbs\.db)/i', $relativePath)) {
+                                $zip->addFile($filePath, $relativePath);
+                            }
+                        }
                     }
+                } elseif (file_exists($fullPath)) {
+                    // Wenn es eine einzelne Datei ist
+                    $zip->addFile($fullPath, basename($fullPath));
                 }
             }
             
@@ -274,12 +305,20 @@ function getBackups() {
         $type = isset($matches[1]) ? $matches[1] : 'full';
         
         // Typ in lesbares Format umwandeln
-        $type_text = match($type) {
-            'full' => 'Vollständig',
-            'db' => 'Datenbank',
-            'files' => 'Dateien',
-            default => 'Vollständig'
-        };
+        $type_text = '';
+        switch($type) {
+            case 'full':
+                $type_text = 'Vollständig';
+                break;
+            case 'db':
+                $type_text = 'Datenbank';
+                break;
+            case 'files':
+                $type_text = 'Dateien';
+                break;
+            default:
+                $type_text = 'Unbekannt';
+        }
         
         $backup_list[] = [
             'file' => basename($backup),

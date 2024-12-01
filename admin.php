@@ -1,138 +1,226 @@
 <?php
-session_start();
 require_once 'includes/init.php';
-require_once 'config.php';
 require_once 'functions.php';
 
+// Prüfe Berechtigung
 if (!is_admin()) {
-    handle_forbidden();
+    header('Location: error.php?message=Keine Berechtigung');
+    exit;
 }
 
-$page_title = 'Administration Dashboard | Kassenbuch';
-require_once 'includes/header.php';
+$page_title = "Administration - " . htmlspecialchars($site_name ?? '');
+include 'includes/header.php';
 ?>
 
-<div class="container">
-    <div class="row my-4">
-        <!-- Übersichtskarten -->
-        <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-subtitle text-muted mb-3">
-                        <i class="bi bi-people"></i> Aktive Benutzer
-                    </h6>
-                    <h2 class="card-title display-6 mb-0" id="active_users">-</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-subtitle text-muted mb-3">
-                        <i class="bi bi-clock-history"></i> Letzte Aktivität
-                    </h6>
-                    <p class="mb-0 fs-5" id="last_activity">-</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-subtitle text-muted mb-3">
-                        <i class="bi bi-hdd"></i> Letztes Backup
-                    </h6>
-                    <p class="mb-0 fs-5" id="last_backup">-</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-subtitle text-muted mb-3">
-                        <i class="bi bi-graph-up"></i> System Status
-                    </h6>
-                    <p class="mb-0 fs-5 text-success">
-                        <i class="bi bi-check-circle"></i> System läuft normal
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Schnellzugriff -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-transparent border-0">
-                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Schnellzugriff</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-4">
-                        <div class="col-md-3">
-                            <a href="benutzerverwaltung.php" class="btn btn-outline-primary w-100 btn-lg">
-                                <i class="bi bi-people"></i> Benutzerverwaltung
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="backup.php" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-download"></i> Backup & Restore
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="settings.php" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-gear"></i> Einstellungen
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-outline-primary w-100" onclick="checkSystem()">
-                                <i class="bi bi-arrow-repeat"></i> System Check
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-transparent border-0">
-            <h5 class="mb-0"><i class="bi bi-gear"></i> Seiten-Verwaltung</h5>
-        </div>
+<div class="max-width-container py-4">
+    <div class="card shadow-sm">
         <div class="card-body">
-            <form id="pagesForm" onsubmit="updatePages(event)">
-                <div class="mb-4">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="showImpressum" name="show_impressum">
-                        <label class="form-check-label" for="showImpressum">Impressum anzeigen</label>
+            <h1 class="h3 card-title mb-4">
+                <i class="bi bi-gear-fill text-primary"></i> Administration
+            </h1>
+
+            <!-- System-Status -->
+            <div class="admin-section mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-info-circle text-info"></i> System-Status
+                </h3>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="bi bi-database text-primary me-3"></i>
+                                <div>
+                                    <h5 class="card-title mb-1">Datenbank</h5>
+                                    <div class="text-muted small">
+                                        Version: <?= htmlspecialchars($conn->server_info) ?><br>
+                                        Zeichensatz: <?= htmlspecialchars($conn->character_set_name()) ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="bi bi-server text-success me-3"></i>
+                                <div>
+                                    <h5 class="card-title mb-1">Server</h5>
+                                    <div class="text-muted small">
+                                        PHP Version: <?= phpversion() ?><br>
+                                        Server: <?= htmlspecialchars($_SERVER['SERVER_SOFTWARE']) ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="mb-4">
-                    <label class="form-label">Impressum Inhalt</label>
-                    <textarea class="form-control form-control-lg" id="impressumContent" name="impressum_content" rows="10"></textarea>
+            </div>
+
+            <!-- Schnellzugriff -->
+            <div class="admin-section mb-4">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-lightning text-warning"></i> Schnellzugriff
+                </h3>
+                <div class="d-flex justify-content-between gap-3">
+                    <a href="admin_users.php" class="card flex-fill text-decoration-none hover-shadow">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
+                            <i class="bi bi-people text-primary mb-2"></i>
+                            <h5 class="card-title mb-1">Benutzerverwaltung</h5>
+                            <div class="text-muted small">Benutzer verwalten</div>
+                        </div>
+                    </a>
+                    <a href="backup.php" class="card flex-fill text-decoration-none hover-shadow">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
+                            <i class="bi bi-download text-success mb-2"></i>
+                            <h5 class="card-title mb-1">Backup & Restore</h5>
+                            <div class="text-muted small">Daten sichern</div>
+                        </div>
+                    </a>
+                    <a href="settings.php" class="card flex-fill text-decoration-none hover-shadow">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
+                            <i class="bi bi-gear text-info mb-2"></i>
+                            <h5 class="card-title mb-1">Einstellungen</h5>
+                            <div class="text-muted small">System anpassen</div>
+                        </div>
+                    </a>
+                    <a href="import_excel.php" class="card flex-fill text-decoration-none hover-shadow">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
+                            <i class="bi bi-file-earmark-excel text-success mb-2"></i>
+                            <h5 class="card-title mb-1">Excel Import</h5>
+                            <div class="text-muted small">Daten importieren</div>
+                        </div>
+                    </a>
                 </div>
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="showDatenschutz" name="show_datenschutz">
-                        <label class="form-check-label" for="showDatenschutz">Datenschutz anzeigen</label>
+            </div>
+
+            <!-- Statistiken -->
+            <div class="admin-section">
+                <h3 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-graph-up text-success"></i> Statistiken
+                </h3>
+                <div class="row g-3">
+                    <?php
+                    // Anzahl der Benutzer
+                    try {
+                        $user_count = $conn->query("SELECT COUNT(*) as count FROM benutzer")->fetch_assoc()['count'] ?? 0;
+                    } catch (Exception $e) {
+                        $user_count = 0;
+                    }
+                    
+                    // Anzahl der Kassenbuch-Einträge
+                    try {
+                        $entry_count = $conn->query("SELECT COUNT(*) as count FROM kassenbuch_eintraege")->fetch_assoc()['count'] ?? 0;
+                    } catch (Exception $e) {
+                        $entry_count = 0;
+                    }
+                    
+                    // Letzter Login
+                    try {
+                        $last_login = $conn->query("SELECT MAX(last_login) as last FROM benutzer")->fetch_assoc()['last'];
+                    } catch (Exception $e) {
+                        $last_login = null;
+                    }
+                    ?>
+                    <div class="col-4">
+                        <div class="card h-100">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="bi bi-people text-primary me-3"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-1">Benutzer</h5>
+                                    <div class="text-muted small">Aktive Konten</div>
+                                </div>
+                                <div class="h4 mb-0 ms-3"><?= $user_count ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card h-100">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="bi bi-journal-text text-success me-3"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-1">Einträge</h5>
+                                    <div class="text-muted small">Gesamt</div>
+                                </div>
+                                <div class="h4 mb-0 ms-3"><?= $entry_count ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card h-100">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="bi bi-clock-history text-info me-3"></i>
+                                <div>
+                                    <h5 class="card-title mb-1">Letzter Login</h5>
+                                    <div class="text-muted small"><?= $last_login ? date('d.m.Y H:i', strtotime($last_login)) : 'Nie' ?></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Datenschutz Inhalt</label>
-                    <textarea class="form-control" id="datenschutzContent" name="datenschutz_content" rows="10"></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-save"></i> Speichern
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.1)!important;
+    transform: translateY(-1px);
+    transition: all .2s ease-in-out;
+}
 
-<!-- JavaScript für Admin Dashboard -->
-<script src="js/admin.js"></script>
+[data-bs-theme="dark"] .card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
 
-<?php require_once 'includes/footer.php'; ?> 
+[data-bs-theme="dark"] .hover-shadow:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.card {
+    border: 1px solid rgba(0,0,0,.125);
+    min-width: 0;
+}
+
+.card-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.admin-section h3 {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0 0 0.75rem 0;
+}
+
+.bi {
+    font-size: 1.5rem;
+}
+
+.small {
+    font-size: 0.8rem;
+}
+
+.gap-3 {
+    gap: 1rem !important;
+}
+
+.py-3 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+.flex-fill {
+    flex: 1 1 0;
+    min-width: 0;
+}
+</style>
+
+<?php include 'includes/footer.php'; ?> 
