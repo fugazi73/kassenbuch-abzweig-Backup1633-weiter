@@ -21,39 +21,27 @@ try {
     </div><!-- Ende .container von main -->
 </main><!-- Ende main -->
 
-<footer class="footer mt-auto py-3 bg-body-tertiary border-top">
+<footer class="footer mt-auto">
     <div class="container">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div class="d-flex align-items-center">
-                    <img src="<?= $basePath ?>/<?= $savedTheme === 'dark' ? $logo_dark : $logo_light ?>" 
-                         alt="Logo" height="24" class="me-2">
-                    <span class="text-body-secondary">
-                        &copy; <?= date('Y') ?> <?= COMPANY_NAME ?>
-                        <span class="ms-2">Version <?= APP_VERSION ?></span>
-                    </span>
-                </div>
+        <a href="<?= $basePath ?>/index.php" class="footer-brand">
+            <img src="<?= $basePath ?>/<?= $savedTheme === 'dark' ? $logo_dark : $logo_light ?>" alt="Logo">
+            <span><?= htmlspecialchars($site_name) ?></span>
+        </a>
+        <div class="footer-content">
+            <div class="footer-icons">
+                <a href="<?= $basePath ?>/help/manual.php" class="text-body-secondary" title="Handbuch">
+                    <i class="bi bi-book"></i>
+                </a>
+                <a href="<?= $basePath ?>/help/changelog.php" class="text-body-secondary" title="Changelog">
+                    <i class="bi bi-clock-history"></i>
+                </a>
+                <a href="<?= $basePath ?>/help/about.php" class="text-body-secondary" title="Über">
+                    <i class="bi bi-info-circle"></i>
+                </a>
             </div>
-            <div class="col-md-6">
-                <div class="d-flex justify-content-md-end align-items-center gap-3">
-                    <a href="<?= $basePath ?>/help/about.php" class="text-body-secondary text-decoration-none">
-                        <i class="bi bi-info-circle"></i> Über uns
-                    </a>
-                    <a href="<?= $basePath ?>/help/manual.php" class="text-body-secondary text-decoration-none">
-                        <i class="bi bi-book"></i> Handbuch
-                    </a>
-                    <?php if ($settings['show_datenschutz'] === '1'): ?>
-                        <a href="<?= $basePath ?>/datenschutz.php" class="text-body-secondary text-decoration-none">
-                            <i class="bi bi-shield-check"></i> Datenschutz
-                        </a>
-                    <?php endif; ?>
-                    <?php if ($settings['show_impressum'] === '1'): ?>
-                        <a href="<?= $basePath ?>/impressum.php" class="text-body-secondary text-decoration-none">
-                            <i class="bi bi-file-text"></i> Impressum
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
+            <p class="footer-text">
+                &copy; <?= date('Y') ?> <a href="https://meincode.eu" class="text-body-secondary text-decoration-none">meincode.eu</a>
+            </p>
         </div>
     </div>
 </footer>

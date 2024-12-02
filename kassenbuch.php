@@ -160,11 +160,11 @@ require_once 'includes/header.php';
 
             <!-- Hervorgehobener Eintragsbereich -->
             <?php if (check_permission('add_entries')): ?>
-            <div class="quick-entry-section mb-4">
+            <div class="quick-entry-section">
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-plus-circle text-success"></i> Neuer Eintrag
                 </h3>
-                <div class="quick-entry-form p-3 bg-light rounded">
+                <div class="p-3 bg-body-tertiary rounded">
                     <form id="quickEntryForm" class="row g-3">
                         <div class="col-md-2">
                             <label for="datum" class="form-label small">Datum</label>
@@ -209,6 +209,10 @@ require_once 'includes/header.php';
             <?php endif; ?>
 
             <!-- Filter-Bereich -->
+            <?php if (check_permission('filter_month') || 
+                      check_permission('filter_remarks') || 
+                      check_permission('filter_date') || 
+                      check_permission('filter_type')): ?>
             <div class="filter-section mb-4">
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-funnel text-info"></i> Filter
@@ -270,11 +274,6 @@ require_once 'includes/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <!-- Filter Buttons - immer sichtbar wenn mindestens eine Filteroption verfügbar -->
-                    <?php if (check_permission('filter_month') || 
-                              check_permission('filter_remarks') || 
-                              check_permission('filter_date') || 
-                              check_permission('filter_type')): ?>
                     <div class="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
                             <i class="bi bi-funnel-fill"></i> Filtern
@@ -283,9 +282,9 @@ require_once 'includes/header.php';
                             <i class="bi bi-x-circle"></i>
                         </a>
                     </div>
-                    <?php endif; ?>
                 </form>
             </div>
+            <?php endif; ?>
 
             <!-- Tabelle -->
             <?php include 'includes/kassenbuch_table.php'; ?>
