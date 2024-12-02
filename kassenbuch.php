@@ -1,8 +1,12 @@
 <?php
-session_start();
 require_once 'includes/init.php';
-require_once 'functions.php';     // Lädt die Authentifizierungsfunktionen
-require_once 'includes/auth.php'; // Prüft nur den Login-Status
+require_once 'includes/auth.php';
+
+// Prüfe ob Benutzer das Kassenbuch sehen darf
+if (!check_permission('view_cashbook')) {
+    header('Location: error.php?message=Keine Berechtigung');
+    exit;
+}
 
 // Setze den Seitentitel
 $page_title = $site_name ? "Kassenbuch - " . htmlspecialchars($site_name) : "Kassenbuch";
@@ -155,6 +159,7 @@ require_once 'includes/header.php';
             </div>
 
             <!-- Hervorgehobener Eintragsbereich -->
+            <?php if (check_permission('add_entries')): ?>
             <div class="quick-entry-section mb-4">
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-plus-circle text-success"></i> Neuer Eintrag
@@ -201,14 +206,15 @@ require_once 'includes/header.php';
                     </form>
                 </div>
             </div>
+            <?php endif; ?>
 
-            <!-- Filter nur für Admin/Chef -->
-            <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
+            <!-- Filter-Bereich -->
             <div class="filter-section mb-4">
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-funnel text-info"></i> Filter
                 </h3>
                 <form id="filterForm" method="GET" class="row g-3">
+                    <?php if (check_permission('filter_month')): ?>
                     <div class="col-md-2">
                         <label class="form-label small">Monat</label>
                         <select name="monat" class="form-select">
@@ -221,26 +227,9 @@ require_once 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Von Datum</label>
-                        <input type="text" name="von_datum" class="form-control" 
-                               placeholder="TT.MM.JJJJ"
-                               value="<?= isset($_GET['von_datum']) ? htmlspecialchars($_GET['von_datum']) : '' ?>">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Bis Datum</label>
-                        <input type="text" name="bis_datum" class="form-control" 
-                               placeholder="TT.MM.JJJJ"
-                               value="<?= isset($_GET['bis_datum']) ? htmlspecialchars($_GET['bis_datum']) : '' ?>">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Typ</label>
-                        <select name="typ" class="form-select">
-                            <option value="">Alle</option>
-                            <option value="einnahme" <?= ($_GET['typ'] ?? '') === 'einnahme' ? 'selected' : '' ?>>Einnahmen</option>
-                            <option value="ausgabe" <?= ($_GET['typ'] ?? '') === 'ausgabe' ? 'selected' : '' ?>>Ausgaben</option>
-                        </select>
-                    </div>
+                    <?php endif; ?>
+
+                    <?php if (check_permission('filter_remarks')): ?>
                     <div class="col-md-2">
                         <label class="form-label small">Bemerkung</label>
                         <select name="bemerkung" class="form-select select2-filter">
@@ -253,6 +242,39 @@ require_once 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php endif; ?>
+
+                    <?php if (check_permission('filter_date')): ?>
+                    <div class="col-md-2">
+                        <label class="form-label small">Von Datum</label>
+                        <input type="text" name="von_datum" class="form-control" 
+                               placeholder="TT.MM.JJJJ"
+                               value="<?= isset($_GET['von_datum']) ? htmlspecialchars($_GET['von_datum']) : '' ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Bis Datum</label>
+                        <input type="text" name="bis_datum" class="form-control" 
+                               placeholder="TT.MM.JJJJ"
+                               value="<?= isset($_GET['bis_datum']) ? htmlspecialchars($_GET['bis_datum']) : '' ?>">
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (check_permission('filter_type')): ?>
+                    <div class="col-md-2">
+                        <label class="form-label small">Typ</label>
+                        <select name="typ" class="form-select">
+                            <option value="">Alle</option>
+                            <option value="einnahme" <?= ($_GET['typ'] ?? '') === 'einnahme' ? 'selected' : '' ?>>Einnahmen</option>
+                            <option value="ausgabe" <?= ($_GET['typ'] ?? '') === 'ausgabe' ? 'selected' : '' ?>>Ausgaben</option>
+                        </select>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Filter Buttons - immer sichtbar wenn mindestens eine Filteroption verfügbar -->
+                    <?php if (check_permission('filter_month') || 
+                              check_permission('filter_remarks') || 
+                              check_permission('filter_date') || 
+                              check_permission('filter_type')): ?>
                     <div class="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
                             <i class="bi bi-funnel-fill"></i> Filtern
@@ -261,9 +283,9 @@ require_once 'includes/header.php';
                             <i class="bi bi-x-circle"></i>
                         </a>
                     </div>
+                    <?php endif; ?>
                 </form>
             </div>
-            <?php endif; ?>
 
             <!-- Tabelle -->
             <?php include 'includes/kassenbuch_table.php'; ?>

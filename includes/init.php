@@ -39,3 +39,9 @@ $savedTheme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'dark';
 
 // Aktuelle Seite ermitteln
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
+
+// Am Anfang der Datei nach der Session-Initialisierung
+require_once __DIR__ . '/permissions.php';
+
+// Am Ende der Datei:
+initialize_default_permissions();

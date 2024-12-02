@@ -112,7 +112,7 @@ function buildPaginationUrl($page) {
 ?>
 
 <div class="table-responsive">
-    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+    <?php if (check_permission('delete_entries')): ?>
     <div class="mb-3">
         <button type="button" id="massDeleteBtn" class="btn btn-danger" style="display: none;">
             <i class="bi bi-trash"></i> Ausgewählte Einträge löschen
@@ -164,7 +164,7 @@ function buildPaginationUrl($page) {
     <table class="table table-striped table-hover">
         <thead>
             <tr>
-                <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+                <?php if (check_permission('delete_entries')): ?>
                 <th>
                     <input type="checkbox" id="selectAll" class="form-check-input">
                 </th>
@@ -174,7 +174,7 @@ function buildPaginationUrl($page) {
                 <th class="text-end">Einnahme</th>
                 <th class="text-end">Ausgabe</th>
                 <th class="text-end">Kassenstand</th>
-                <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
+                <?php if (check_permission('edit_entries') || check_permission('delete_entries')): ?>
                 <th class="text-end">Aktionen</th>
                 <?php endif; ?>
             </tr>
@@ -182,7 +182,7 @@ function buildPaginationUrl($page) {
         <tbody>
             <?php foreach ($entries as $entry): ?>
                 <tr>
-                    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
+                    <?php if (check_permission('delete_entries')): ?>
                     <td>
                         <input type="checkbox" class="form-check-input entry-checkbox" value="<?= $entry['id'] ?>">
                     </td>
@@ -198,14 +198,19 @@ function buildPaginationUrl($page) {
                     <td class="text-end <?= $entry['kassenstand'] >= 0 ? 'text-success' : 'text-danger' ?> fw-bold">
                         <?= number_format($entry['kassenstand'], 2, ',', '.') ?> €
                     </td>
-                    <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'chef'])): ?>
+                    <?php if (check_permission('edit_entries') || check_permission('delete_entries')): ?>
                     <td class="text-end">
                         <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-primary" onclick="editEntry(<?= $entry['id'] ?>)">
+                            <?php if (check_permission('edit_entries')): ?>
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="editEntry(<?= $entry['id'] ?>)">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin'])): ?>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteEntry(<?= $entry['id'] ?>)">
+                            <?php endif; ?>
+                            
+                            <?php if (check_permission('delete_entries')): ?>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteEntry(<?= $entry['id'] ?>)">
                                 <i class="bi bi-trash"></i>
                             </button>
                             <?php endif; ?>

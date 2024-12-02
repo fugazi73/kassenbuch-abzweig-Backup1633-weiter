@@ -70,7 +70,7 @@ include 'includes/header.php';
                         </thead>
                         <tbody>
                             <?php
-                            $result = $conn->query("SELECT * FROM benutzer ORDER BY username");
+                            $result = $conn->query("SELECT *, COALESCE(active, 1) as active FROM benutzer ORDER BY username");
                             while ($user = $result->fetch_assoc()):
                                 // Rolle in lesbaren Text umwandeln
                                 $role_text = '';
@@ -93,7 +93,7 @@ include 'includes/header.php';
                                 <td><span class="badge bg-<?= $role_badge ?>"><?= $role_text ?></span></td>
                                 <td><?= $user['last_login'] ? date('d.m.Y H:i', strtotime($user['last_login'])) : 'Nie' ?></td>
                                 <td>
-                                    <?php if ($user['active']): ?>
+                                    <?php if (isset($user['active']) && $user['active']): ?>
                                         <span class="badge bg-success">Aktiv</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Inaktiv</span>

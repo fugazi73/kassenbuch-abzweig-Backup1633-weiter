@@ -1,4 +1,25 @@
 <?php
+require_once 'includes/init.php';
+require_once 'includes/auth.php';
+
+// Prüfe Exportberechtigung
+if (!check_permission('export')) {
+    header('Location: error.php?message=Keine Berechtigung');
+    exit;
+}
+
+$page_title = "Export - " . htmlspecialchars($site_name ?? '');
+include 'includes/header.php';
+?>
+
+<!-- Bootstrap JS für Dropdowns -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
+
+<!-- Rest des Export-Codes -->
+
+<?php
 session_start();
 require_once 'includes/init.php';
 require_once 'config.php';

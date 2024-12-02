@@ -49,6 +49,7 @@ $basePath = $isInSubfolder ? '..' : '.';
     <script src="<?= $basePath ?>/js/theme.js" defer></script>
     <script src="<?= $basePath ?>/js/main.js" defer></script>
     <script src="<?= $basePath ?>/js/navigation.js" defer></script>
+    <script src="<?= $basePath ?>/assets/js/shortcuts.js" defer></script>
     
     <!-- Seiten-spezifische Scripts -->
     <?php if ($current_page === 'kassenbuch'): ?>
@@ -103,59 +104,80 @@ $basePath = $isInSubfolder ? '..' : '.';
 
                 <div class="collapse navbar-collapse" id="navbarContent">
                     <ul class="navbar-nav me-auto">
+                        <?php if (check_permission('view_cashbook')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= $current_page === 'kassenbuch' ? 'active' : '' ?>" 
                                href="<?= $basePath ?>/kassenbuch.php">
                                 <i class="bi bi-journal-plus"></i> Kassenbuch
                             </a>
                         </li>
+                        <?php endif; ?>
                         
-                        <?php if (is_chef() || is_admin()): ?>
+                        <?php if (check_permission('view_admin_menu')): ?>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" 
                                data-bs-toggle="dropdown">
                                 <i class="bi bi-gear"></i> Administration
                             </a>
                             <ul class="dropdown-menu">
+                                <?php if (check_permission('view_dashboard')): ?>
                                 <li>
                                     <a class="dropdown-item" href="<?= $basePath ?>/admin.php">
                                         <i class="bi bi-tools"></i> Dashboard
                                     </a>
                                 </li>
+                                <?php endif; ?>
+                                
+                                <?php if (check_permission('manage_users')): ?>
                                 <li>
                                     <a class="dropdown-item" href="<?= $basePath ?>/admin_users.php">
                                         <i class="bi bi-people"></i> Benutzerverwaltung
                                     </a>
                                 </li>
+                                <?php endif; ?>
+                                
+                                <?php if (check_permission('manage_permissions')): ?>
+                                <li>
+                                    <a class="dropdown-item" href="<?= $basePath ?>/admin_permissions.php">
+                                        <i class="bi bi-shield-lock"></i> Berechtigungen
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                
+                                <?php if (check_permission('manage_backup')): ?>
                                 <li>
                                     <a class="dropdown-item" href="<?= $basePath ?>/backup.php">
                                         <i class="bi bi-download"></i> Backup & Restore
                                     </a>
                                 </li>
+                                <?php endif; ?>
+                                
+                                <?php if (check_permission('manage_settings')): ?>
                                 <li>
                                     <a class="dropdown-item" href="<?= $basePath ?>/settings.php">
                                         <i class="bi bi-gear"></i> Einstellungen
                                     </a>
                                 </li>
+                                <?php endif; ?>
+                                
+                                <?php if (check_permission('import_excel')): ?>
                                 <li>
                                     <a class="dropdown-item" href="<?= $basePath ?>/import_excel.php">
                                         <i class="bi bi-file-earmark-excel"></i> Excel Import
                                     </a>
                                 </li>
-                                <li>
-                                    <a class="dropdown-item" href="<?= $basePath ?>/export_history.php">
-                                        <i class="bi bi-clock-history"></i> Export Historie
-                                    </a>
-                                </li>
+                                <?php endif; ?>
                             </ul>
                         </li>
                         <?php endif; ?>
 
+                        <?php if (check_permission('export')): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?= $basePath ?>/export.php">
                                 <i class="bi bi-download"></i> Export
                             </a>
                         </li>
+                        <?php endif; ?>
                         
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="helpDropdown" 
