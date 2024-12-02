@@ -1,204 +1,151 @@
 <?php
-require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/init.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
-require_once __DIR__ . '/column_config.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 header('Content-Type: application/json');
 
 try {
-    // Prüfe Admin-Berechtigung
+    // Prüfe Berechtigung
     if (!is_admin()) {
         throw new Exception('Keine Berechtigung');
     }
 
-    // Prüfe ob Excel-Datei in der Session vorhanden ist
-    if (!isset($_SESSION['excel_file']) || !file_exists($_SESSION['excel_file'])) {
-        throw new Exception('Keine Datei gefunden');
+    // Hole POST-Daten
+    $postData = json_decode(file_get_contents('php://input'), true);
+    if (!$postData || !isset($postData['mapping'])) {
+        throw new Exception('Ungültige Anfrage');
     }
 
-    // Entferne UNIQUE-Index von beleg_nr falls vorhanden
-    $conn->query("ALTER TABLE kassenbuch_eintraege DROP INDEX IF EXISTS beleg_nr");
+    $mapping = $postData['mapping'];
+    $requiredColumns = ['datum', 'beleg', 'beschreibung', 'einnahme', 'ausgabe'];
     
-    // Hole die Überschriftszeile
-    $header_row = isset($_SESSION['excel_header_row']) ? (int)$_SESSION['excel_header_row'] : 6;
+    // Prüfe ob alle erforderlichen Spalten zugeordnet sind
+    foreach ($requiredColumns as $column) {
+        if (!isset($mapping[$column])) {
+            throw new Exception("Spalte '$column' wurde nicht zugeordnet");
+        }
+    }
 
-    // Lade Excel-Datei
-    $spreadsheet = IOFactory::load($_SESSION['excel_file']);
+    // Lade die temporäre Excel-Datei
+    if (!isset($_SESSION['import_file']) || !file_exists($_SESSION['import_file'])) {
+        throw new Exception('Keine Datei zum Importieren gefunden');
+    }
+
+    $spreadsheet = IOFactory::load($_SESSION['import_file']);
     $worksheet = $spreadsheet->getActiveSheet();
-    $highestRow = $worksheet->getHighestRow();
     
     // Starte Transaktion
-    $conn->begin_transaction();
-
-    $importCount = 0;
+    $db->beginTransaction();
     
-    // Lade Spaltenkonfiguration
-    $column_mapping = loadColumnMapping();
-    if (!$column_mapping) {
-        throw new Exception('Keine Spaltenkonfiguration gefunden. Bitte zuerst Spalten zuordnen.');
-    }
-    
-    function isEmptyOrSummaryRow($row, $columnMapping) {
-        // Prüfe auf Schlüsselwörter in der Beschreibung
-        $description = trim($row[$columnMapping['beschreibung']] ?? '');
-        if (in_array(strtolower($description), ['saldo', 'summen', 'summe'])) {
-            return true;
-        }
-
-        // Zähle die Anzahl der Nullwerte
-        $zeroCount = 0;
-        $totalFields = 0;
+    try {
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
         
-        foreach ($row as $value) {
-            if (empty($value) || $value == '0' || $value == '0,00' || $value == '0,00 €' || $value == '0.00' || $value == '0.00 €') {
-                $zeroCount++;
-            }
-            $totalFields++;
-        }
-
-        // Wenn mehr als 80% der Felder Null sind, betrachte es als leere Zeile
-        return ($zeroCount / $totalFields) > 0.8;
-    }
-
-    function processExcelFile($filePath, $headerRows = 6) {
-        // ... existing code ...
-        
-        foreach ($worksheet->getRowIterator($headerRows + 1) as $row) {
+        // Iteriere über alle Zeilen (ab Zeile 2, da Zeile 1 die Überschriften enthält)
+        foreach ($worksheet->getRowIterator(2) as $row) {
             $rowData = [];
             foreach ($row->getCellIterator() as $cell) {
-                $rowData[] = $cell->getValue();
+                $rowData[] = trim($cell->getValue());
             }
             
-            // Überspringe leere oder Summenzeilen
-            if (isEmptyOrSummaryRow($rowData, $columnMapping)) {
+            // Überspringe leere Zeilen
+            if (empty(array_filter($rowData))) {
                 continue;
             }
             
-            // Verarbeite nur Zeilen mit gültigen Daten
-            $datum = formatDate($rowData[$columnMapping['datum']]);
-            if (!$datum) {
+            // Bereite Daten vor
+            $entry = [
+                'datum' => formatDate($rowData[$mapping['datum']]),
+                'beleg_nr' => $rowData[$mapping['beleg']],
+                'beschreibung' => $rowData[$mapping['beschreibung']],
+                'einnahme' => normalizeAmount($rowData[$mapping['einnahme']]),
+                'ausgabe' => normalizeAmount($rowData[$mapping['ausgabe']]),
+                'user_id' => $_SESSION['user_id']
+            ];
+            
+            // Validiere Daten
+            if (!$entry['datum']) {
+                $errorCount++;
+                $errors[] = "Zeile {$row->getRowIndex()}: Ungültiges Datum";
                 continue;
             }
-
-            // ... rest of existing code ...
-        }
-        // ... existing code ...
-    }
-    
-    // Verarbeite jede Zeile nach den Überschriften
-    for ($row = $header_row + 1; $row <= $highestRow; $row++) {
-        $data = [];
-        $hasData = false;
-        
-        // Lese Zeilendaten entsprechend der Spaltenkonfiguration
-        foreach ($column_mapping as $db_field => $excel_column) {
-            $cell = $worksheet->getCell($excel_column . $row);
             
-            if ($cell->isFormula()) {
-                $value = $cell->getCalculatedValue();
+            // Füge Eintrag hinzu
+            $stmt = $db->prepare("
+                INSERT INTO kassenbuch 
+                (datum, beleg_nr, beschreibung, einnahme, ausgabe, user_id, created_at) 
+                VALUES 
+                (:datum, :beleg_nr, :beschreibung, :einnahme, :ausgabe, :user_id, NOW())
+            ");
+            
+            if ($stmt->execute($entry)) {
+                $successCount++;
             } else {
-                $value = $cell->getValue();
+                $errorCount++;
+                $errors[] = "Zeile {$row->getRowIndex()}: Fehler beim Speichern";
             }
-            
-            // Formatiere Werte entsprechend des Feldtyps
-            switch ($db_field) {
-                case 'datum':
-                    $value = formatDate($value);
-                    break;
-                    
-                case 'einnahme':
-                case 'ausgabe':
-                    if (!empty($value)) {
-                        if (is_numeric($value)) {
-                            $value = floatval($value);
-                        } else {
-                            $value = str_replace(['.', ',', '€', ' '], ['', '.', '', ''], $value);
-                            $value = floatval($value);
-                        }
-                    } else {
-                        $value = 0.00;
-                    }
-                    break;
-                    
-                default:
-                    $value = trim($value ?? '');
-            }
-            
-            $data[$db_field] = $value;
-            
-            // Prüfe ob die Zeile echte Daten enthält
-            if ($db_field === 'einnahme' && $value > 0) $hasData = true;
-            if ($db_field === 'ausgabe' && $value > 0) $hasData = true;
-            if ($db_field === 'bemerkung' && !empty($value)) $hasData = true;
         }
-
-        // Überspringe Zeile wenn keine echten Daten vorhanden sind
-        if (!$hasData) {
-            continue;
-        }
-
-        // Berechne Saldo
-        $data['saldo'] = ($data['einnahme'] ?? 0) - ($data['ausgabe'] ?? 0);
         
-        // Füge Benutzer-ID hinzu
-        $data['user_id'] = $_SESSION['user_id'];
-
-        // Bereite SQL vor
-        $columns = array_keys($data);
-        $values = array_values($data);
-        $placeholders = str_repeat('?,', count($data) - 1) . '?';
+        // Wenn alles erfolgreich war, commit die Transaktion
+        $db->commit();
         
-        $sql = "INSERT INTO kassenbuch_eintraege (" . implode(',', $columns) . ") 
-                VALUES ($placeholders)";
+        // Lösche temporäre Datei
+        if (file_exists($_SESSION['import_file'])) {
+            unlink($_SESSION['import_file']);
+            unset($_SESSION['import_file']);
+        }
         
-        $stmt = $conn->prepare($sql);
-        if (!$stmt) {
-            throw new Exception("SQL-Fehler: " . $conn->error);
-        }
-
-        // Bestimme die Typen für bind_param
-        $types = '';
-        foreach ($data as $value) {
-            if (is_int($value)) $types .= 'i';
-            elseif (is_float($value)) $types .= 'd';
-            else $types .= 's';
-        }
-
-        $stmt->bind_param($types, ...$values);
+        echo json_encode([
+            'success' => true,
+            'message' => "Import abgeschlossen: $successCount Einträge importiert, $errorCount Fehler",
+            'errors' => $errors
+        ]);
         
-        if ($stmt->execute()) {
-            $importCount++;
-        }
+    } catch (Exception $e) {
+        $db->rollBack();
+        throw $e;
     }
     
-    // Commit wenn alles erfolgreich
-    $conn->commit();
-    
-    // Lösche temporäre Datei und Session-Variablen
-    if (isset($_SESSION['excel_file']) && file_exists($_SESSION['excel_file'])) {
-        unlink($_SESSION['excel_file']);
-    }
-    unset($_SESSION['excel_file']);
-    unset($_SESSION['original_filename']);
-    
-    echo json_encode([
-        'success' => true,
-        'message' => "$importCount Einträge wurden erfolgreich importiert"
-    ]);
-
 } catch (Exception $e) {
-    if (isset($conn)) {
-        $conn->rollback();
-    }
-    
-    error_log("Import-Fehler: " . $e->getMessage());
+    error_log('Import Fehler: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
+}
+
+// Hilfsfunktionen
+function formatDate($date) {
+    if (empty($date)) return false;
+    
+    // Versuche verschiedene Datumsformate
+    $formats = [
+        'd.m.Y', 'Y-m-d', 'd/m/Y', 
+        'd.m.y', 'y-m-d', 'd/m/y'
+    ];
+    
+    foreach ($formats as $format) {
+        $d = DateTime::createFromFormat($format, $date);
+        if ($d && $d->format($format) == $date) {
+            return $d->format('Y-m-d');
+        }
+    }
+    
+    return false;
+}
+
+function normalizeAmount($amount) {
+    if (empty($amount)) return 0.00;
+    
+    // Entferne Währungssymbole und Tausendertrennzeichen
+    $amount = preg_replace('/[^0-9,.-]/', '', $amount);
+    
+    // Ersetze Komma durch Punkt
+    $amount = str_replace(',', '.', $amount);
+    
+    // Konvertiere zu Float und runde auf 2 Dezimalstellen
+    return round(floatval($amount), 2);
 } 
