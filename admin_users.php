@@ -244,19 +244,15 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         if (!this.checkValidity()) return;
 
-        const formData = {
-            username: document.getElementById('username').value,
-            password: document.getElementById('password').value,
-            role: document.getElementById('role').value
-        };
+        const formData = new FormData();
+        formData.append('username', document.getElementById('username').value);
+        formData.append('password', document.getElementById('password').value);
+        formData.append('role', document.getElementById('role').value);
 
         try {
             const response = await fetch('add_user.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
+                body: formData
             });
 
             const result = await response.json();

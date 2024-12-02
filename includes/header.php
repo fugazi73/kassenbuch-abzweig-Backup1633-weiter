@@ -22,7 +22,9 @@ if ($current_page !== 'login' && !is_logged_in()) {
 $savedTheme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'dark';
 
 // Bestimme den Base Path für Assets
-$isInSubfolder = strpos($_SERVER['PHP_SELF'], '/help/') !== false;
+$current_path = $_SERVER['PHP_SELF'];
+$isInSubfolder = strpos($current_path, '/user/') !== false || 
+                 strpos($current_path, '/help/') !== false;
 $basePath = $isInSubfolder ? '..' : '.';
 ?>
 <!DOCTYPE html>

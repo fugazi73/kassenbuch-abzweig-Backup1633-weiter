@@ -29,8 +29,34 @@ require_once $root_dir . '/includes/header.php';
 
 // Changelog-Daten
 $changelog = [
-    '1.0.2-dev' => [
-        'date' => '2024-01-27',
+    '1.0.3' => [
+        'date' => '2024-01-29',
+        'changes' => [
+            'Hinzugefügt' => [
+                'Verbesserte Benutzerprofilseite',
+                'Passwort-Änderungsfunktion',
+                'Erweiterte Berechtigungsverwaltung'
+            ],
+            'Verbessert' => [
+                'Optimierte Theme-Umschaltung ohne Flackern',
+                'Konsistentes Design über alle Seiten',
+                'Verbesserte Filter-Darstellung',
+                'Einheitliche Header- und Footer-Gestaltung'
+            ],
+            'Behoben' => [
+                'Theme-Switching Probleme behoben',
+                'Berechtigungsprüfungen optimiert',
+                'Filter-Anzeige bei deaktivierten Berechtigungen korrigiert'
+            ],
+            'Optimiert' => [
+                'Code-Struktur überarbeitet',
+                'Performance-Optimierungen',
+                'Verbesserte Benutzerführung'
+            ]
+        ]
+    ],
+    '1.0.2' => [
+        'date' => '2023-12-29',
         'changes' => [
             'Hinzugefügt' => [
                 'Excel-Import in der Hauptnavigation',
@@ -56,8 +82,8 @@ $changelog = [
             ]
         ]
     ],
-    '1.0' => [
-        'date' => '2024-01-29',
+    '1.0.1' => [
+        'date' => '2024-11-29',
         'changes' => [
             'Hinzugefügt' => [
                 'Initiale Version des Kassenbuchs',
@@ -65,7 +91,7 @@ $changelog = [
                 'Standard-Spalten für Kassenbucheinträge',
                 'Logo-Upload für helles und dunkles Design',
                 'Benutzerdefinierte Spalten mit verschiedenen Datentypen',
-                'Excel-Mapping für alle Spalten',
+                'Excel-Mapping für alle Spalten'
             ],
             'Implementiert' => [
                 'Basis-Funktionalität für Kassenbuchführung',
@@ -80,6 +106,16 @@ $changelog = [
                 'Datenbankstruktur für flexible Anpassungen'
             ]
         ]
+    ],
+    '1.0.0' => [
+        'date' => '2024-11-25',
+        'changes' => [
+            'Hinzugefügt' => [
+                'Erste Beta-Version',
+                'Grundlegende Kassenbuch-Funktionen',
+                'Einfache Benutzerverwaltung'
+            ]
+        ]
     ]
 ];
 ?>
@@ -92,16 +128,6 @@ $changelog = [
                 <h1 class="h3 card-title mb-4">
                     <i class="bi bi-clock-history text-primary"></i> Changelog
                 </h1>
-
-                <div class="admin-section mb-3">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-0 small">
-                            <li class="breadcrumb-item"><a href="../index.php">Start</a></li>
-                            <li class="breadcrumb-item"><a href="../help.php">Hilfe</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Changelog</li>
-                        </ol>
-                    </nav>
-                </div>
 
                 <?php foreach ($changelog as $version => $info): ?>
                     <div class="admin-section mb-4">
@@ -118,16 +144,30 @@ $changelog = [
                             <div class="mb-3">
                                 <h4 class="small fw-bold mb-2">
                                     <?php
-                                    $icon = match($category) {
-                                        'Hinzugefügt' => 'bi-plus-circle text-success',
-                                        'Entfernt' => 'bi-dash-circle text-danger',
-                                        'Geändert' => 'bi-arrow-repeat text-warning',
-                                        'Verbessert' => 'bi-stars text-info',
-                                        'Behoben' => 'bi-bug text-danger',
-                                        'Implementiert' => 'bi-check-circle text-success',
-                                        'Optimiert' => 'bi-gear text-info',
-                                        default => 'bi-info-circle text-primary'
-                                    };
+                                    $icon = 'bi-info-circle text-primary'; // Default
+                                    switch($category) {
+                                        case 'Hinzugefügt':
+                                            $icon = 'bi-plus-circle text-success';
+                                            break;
+                                        case 'Entfernt':
+                                            $icon = 'bi-dash-circle text-danger';
+                                            break;
+                                        case 'Geändert':
+                                            $icon = 'bi-arrow-repeat text-warning';
+                                            break;
+                                        case 'Verbessert':
+                                            $icon = 'bi-stars text-info';
+                                            break;
+                                        case 'Behoben':
+                                            $icon = 'bi-bug text-danger';
+                                            break;
+                                        case 'Implementiert':
+                                            $icon = 'bi-check-circle text-success';
+                                            break;
+                                        case 'Optimiert':
+                                            $icon = 'bi-gear text-info';
+                                            break;
+                                    }
                                     ?>
                                     <i class="bi <?= $icon ?>"></i> 
                                     <?= htmlspecialchars($category) ?>

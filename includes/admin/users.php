@@ -106,15 +106,16 @@ function getRoleDisplayName($role) {
                 <div class="modal-body p-4">
                     <div class="mb-4">
                         <label class="form-label">Benutzername</label>
-                        <input type="text" name="username" class="form-control form-control-lg" required>
+                        <input type="text" name="username" class="form-control form-control-lg" required minlength="3">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Passwort</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <input type="password" name="password" class="form-control" required minlength="8">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Rolle</label>
-                        <select name="role" class="form-select">
+                        <select name="role" class="form-select" required>
+                            <option value="">Bitte wählen...</option>
                             <option value="user">Benutzer</option>
                             <option value="admin">Administrator</option>
                             <option value="chef">Chef</option>
@@ -181,36 +182,69 @@ function submitCreateUser(event) {
     const form = event.target;
     const formData = new FormData(form);
     
-    fetch('save_user.php', {
+    // Debug-Ausgabe der Formulardaten
+    console.log('Formulardaten:');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    // Validierung auf Client-Seite
+    const username = formData.get('username');
+    const password = formData.get('password');
+    const role = formData.get('role');
+    
+    if (!username || username.length < 3) {
+        alert('Benutzername muss mindestens 3 Zeichen lang sein');
+        return false;
+    }
+    
+    if (!password || password.length < 8) {
+        alert('Passwort muss mindestens 8 Zeichen lang sein');
+        return false;
+    }
+    
+    if (!role) {
+        alert('Bitte wählen Sie eine Rolle aus');
+        return false;
+    }
+    
+    fetch('../save_user.php', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'same-origin'  // Wichtig für Session-Cookies
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Netzwerk-Antwort war nicht ok');
-        }
-        return response.json();
+        console.log('Server-Antwort Status:', response.status);
+        return response.text().then(text => {
+            console.log('Rohe Server-Antwort:', text);
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                throw new Error('Ungültige Server-Antwort: ' + text);
+            }
+        });
     })
     .then(data => {
+        console.log('Server-Antwort Daten:', data);
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('newUserModal'));
             modal.hide();
             location.reload();
         } else {
-            throw new Error(data.message || 'Fehler beim Speichern des Benutzers');
+            alert(data.message || 'Fehler beim Speichern des Benutzers');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Fehler:', error);
         alert('Ein Fehler ist aufgetreten: ' + error.message);
     });
-
+    
     return false;
 }
 
 // Funktion zum Bearbeiten eines Benutzers
 function editUser(id) {
-    fetch('get_user.php?id=' + id)
+    fetch('../get_user.php?id=' + id)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -237,7 +271,7 @@ function submitEditUser(event) {
     const form = event.target;
     const formData = new FormData(form);
 
-    fetch('update_user.php', {
+    fetch('../update_user.php', {
         method: 'POST',
         body: formData
     })
@@ -265,7 +299,7 @@ function deleteUser(id) {
         const formData = new FormData();
         formData.append('id', id);
 
-        fetch('delete_user.php', {
+        fetch('../delete_user.php', {
             method: 'POST',
             body: formData
         })
