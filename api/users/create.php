@@ -1,23 +1,31 @@
 <?php
-require_once 'config.php';
-require_once 'functions.php';
+require_once '../../includes/init.php';
+require_once '../../includes/auth.php';
 
 header('Content-Type: application/json');
 
 try {
-    // Prüfe Admin-Berechtigung
-    if (!is_admin()) {
+    // Prüfe Berechtigung
+    if (!check_permission('manage_users')) {
         throw new Exception('Keine Berechtigung');
     }
 
     // Validiere Eingaben
-    if (empty($_POST['username']) || empty($_POST['password'])) {
-        throw new Exception('Benutzername und Passwort sind erforderlich');
+    if (empty($_POST['username']) || empty($_POST['password']) || empty($_POST['role'])) {
+        throw new Exception('Alle Felder müssen ausgefüllt werden');
     }
 
     $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
     $password = $_POST['password'];
-    $role = in_array($_POST['role'] ?? 'user', ['admin', 'user', 'chef']) ? $_POST['role'] : 'user';
+    $role = in_array($_POST['role'], ['admin', 'user', 'chef']) ? $_POST['role'] : 'user';
+
+    // Validiere Länge
+    if (strlen($username) < 3) {
+        throw new Exception('Benutzername muss mindestens 3 Zeichen lang sein');
+    }
+    if (strlen($password) < 8) {
+        throw new Exception('Passwort muss mindestens 8 Zeichen lang sein');
+    }
 
     // Prüfe ob Benutzer existiert
     $stmt = $conn->prepare("SELECT id FROM benutzer WHERE username = ?");
@@ -28,8 +36,8 @@ try {
     }
 
     // Erstelle neuen Benutzer
-    $hashed_password = hash_password($password);
-    $stmt = $conn->prepare("INSERT INTO benutzer (username, password, role) VALUES (?, ?, ?)");
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO benutzer (username, password, role, active) VALUES (?, ?, ?, 1)");
     $stmt->bind_param("sss", $username, $hashed_password, $role);
     
     if ($stmt->execute()) {
@@ -42,9 +50,9 @@ try {
     }
 
 } catch (Exception $e) {
-    http_response_code(500);
+    http_response_code(400);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
-}
+} 

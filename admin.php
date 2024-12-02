@@ -25,29 +25,33 @@ include 'includes/header.php';
                     <i class="bi bi-info-circle text-info"></i> System-Status
                 </h3>
                 <div class="row g-3">
-                    <div class="col-6">
+                    <div class="col-md-6">
                         <div class="card h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <i class="bi bi-database text-primary me-3"></i>
-                                <div>
-                                    <h5 class="card-title mb-1">Datenbank</h5>
-                                    <div class="text-muted small">
-                                        Version: <?= htmlspecialchars($conn->server_info) ?><br>
-                                        Zeichensatz: <?= htmlspecialchars($conn->character_set_name()) ?>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-database text-primary me-3"></i>
+                                    <div>
+                                        <h5 class="card-title mb-1">Datenbank</h5>
+                                        <div class="text-muted small">
+                                            Version: <?= htmlspecialchars($conn->server_info) ?><br>
+                                            Zeichensatz: <?= htmlspecialchars($conn->character_set_name()) ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-md-6">
                         <div class="card h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <i class="bi bi-server text-success me-3"></i>
-                                <div>
-                                    <h5 class="card-title mb-1">Server</h5>
-                                    <div class="text-muted small">
-                                        PHP Version: <?= phpversion() ?><br>
-                                        Server: <?= htmlspecialchars($_SERVER['SERVER_SOFTWARE']) ?>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-server text-success me-3"></i>
+                                    <div>
+                                        <h5 class="card-title mb-1">Server</h5>
+                                        <div class="text-muted small">
+                                            PHP Version: <?= phpversion() ?><br>
+                                            Server: <?= htmlspecialchars($_SERVER['SERVER_SOFTWARE']) ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -61,35 +65,51 @@ include 'includes/header.php';
                 <h3 class="border-bottom pb-2 mb-3">
                     <i class="bi bi-lightning text-warning"></i> Schnellzugriff
                 </h3>
-                <div class="d-flex justify-content-between gap-3">
-                    <a href="admin_users.php" class="card flex-fill text-decoration-none hover-shadow">
-                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
-                            <i class="bi bi-people text-primary mb-2"></i>
-                            <h5 class="card-title mb-1">Benutzerverwaltung</h5>
-                            <div class="text-muted small">Benutzer verwalten</div>
-                        </div>
-                    </a>
-                    <a href="backup.php" class="card flex-fill text-decoration-none hover-shadow">
-                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
-                            <i class="bi bi-download text-success mb-2"></i>
-                            <h5 class="card-title mb-1">Backup & Restore</h5>
-                            <div class="text-muted small">Daten sichern</div>
-                        </div>
-                    </a>
-                    <a href="settings.php" class="card flex-fill text-decoration-none hover-shadow">
-                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
-                            <i class="bi bi-gear text-info mb-2"></i>
-                            <h5 class="card-title mb-1">Einstellungen</h5>
-                            <div class="text-muted small">System anpassen</div>
-                        </div>
-                    </a>
-                    <a href="import_excel.php" class="card flex-fill text-decoration-none hover-shadow">
-                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-3">
-                            <i class="bi bi-file-earmark-excel text-success mb-2"></i>
-                            <h5 class="card-title mb-1">Excel Import</h5>
-                            <div class="text-muted small">Daten importieren</div>
-                        </div>
-                    </a>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <a href="admin_users.php" class="card text-decoration-none h-100">
+                            <div class="card-body">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bi bi-people text-primary mb-2"></i>
+                                    <h5 class="card-title mb-1">Benutzerverwaltung</h5>
+                                    <div class="text-muted small">Benutzer verwalten</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="backup.php" class="card text-decoration-none h-100">
+                            <div class="card-body">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bi bi-download text-success mb-2"></i>
+                                    <h5 class="card-title mb-1">Backup & Restore</h5>
+                                    <div class="text-muted small">Daten sichern</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="settings.php" class="card text-decoration-none h-100">
+                            <div class="card-body">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bi bi-gear text-info mb-2"></i>
+                                    <h5 class="card-title mb-1">Einstellungen</h5>
+                                    <div class="text-muted small">System anpassen</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="import_excel.php" class="card text-decoration-none h-100">
+                            <div class="card-body">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bi bi-file-earmark-excel text-success mb-2"></i>
+                                    <h5 class="card-title mb-1">Excel Import</h5>
+                                    <div class="text-muted small">Daten importieren</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -121,37 +141,43 @@ include 'includes/header.php';
                         $last_login = null;
                     }
                     ?>
-                    <div class="col-4">
+                    <div class="col-md-4">
                         <div class="card h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <i class="bi bi-people text-primary me-3"></i>
-                                <div class="flex-grow-1">
-                                    <h5 class="card-title mb-1">Benutzer</h5>
-                                    <div class="text-muted small">Aktive Konten</div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-people text-primary me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title mb-1">Benutzer</h5>
+                                        <div class="text-muted small">Aktive Konten</div>
+                                    </div>
+                                    <div class="h4 mb-0 ms-3"><?= $user_count ?></div>
                                 </div>
-                                <div class="h4 mb-0 ms-3"><?= $user_count ?></div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-4">
+                    <div class="col-md-4">
                         <div class="card h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <i class="bi bi-journal-text text-success me-3"></i>
-                                <div class="flex-grow-1">
-                                    <h5 class="card-title mb-1">Einträge</h5>
-                                    <div class="text-muted small">Gesamt</div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-journal-text text-success me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title mb-1">Einträge</h5>
+                                        <div class="text-muted small">Gesamt</div>
+                                    </div>
+                                    <div class="h4 mb-0 ms-3"><?= $entry_count ?></div>
                                 </div>
-                                <div class="h4 mb-0 ms-3"><?= $entry_count ?></div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-4">
+                    <div class="col-md-4">
                         <div class="card h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <i class="bi bi-clock-history text-info me-3"></i>
-                                <div>
-                                    <h5 class="card-title mb-1">Letzter Login</h5>
-                                    <div class="text-muted small"><?= $last_login ? date('d.m.Y H:i', strtotime($last_login)) : 'Nie' ?></div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-clock-history text-info me-3"></i>
+                                    <div>
+                                        <h5 class="card-title mb-1">Letzter Login</h5>
+                                        <div class="text-muted small"><?= $last_login ? date('d.m.Y H:i', strtotime($last_login)) : 'Nie' ?></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -163,35 +189,9 @@ include 'includes/header.php';
 </div>
 
 <style>
-.hover-shadow:hover {
-    box-shadow: 0 .25rem .5rem rgba(0,0,0,.1)!important;
-    transform: translateY(-1px);
-    transition: all .2s ease-in-out;
-}
-
-[data-bs-theme="dark"] .card {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-bs-theme="dark"] .hover-shadow:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-bs-theme="dark"] .text-muted {
-    color: rgba(255, 255, 255, 0.65) !important;
-}
-
-.card {
-    border: 1px solid rgba(0,0,0,.125);
-    min-width: 0;
-}
-
 .card-title {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     font-weight: 500;
-    margin: 0;
-    white-space: nowrap;
 }
 
 .admin-section h3 {
@@ -200,26 +200,52 @@ include 'includes/header.php';
     margin: 0 0 0.75rem 0;
 }
 
-.bi {
-    font-size: 1.5rem;
+.table th {
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
-.small {
-    font-size: 0.8rem;
+.table td {
+    font-size: 0.9rem;
+    vertical-align: middle;
 }
 
-.gap-3 {
-    gap: 1rem !important;
+.badge {
+    font-weight: 500;
 }
 
-.py-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
 }
 
-.flex-fill {
-    flex: 1 1 0;
-    min-width: 0;
+.form-label.small {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.modal-title {
+    font-size: 1rem;
+}
+
+[data-bs-theme="dark"] .table-light {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.max-width-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 </style>
 

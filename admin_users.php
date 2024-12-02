@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('role', document.getElementById('role').value);
 
         try {
-            const response = await fetch('add_user.php', {
+            const response = await fetch('api/users/create.php', {
                 method: 'POST',
                 body: formData
             });
@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Benutzer bearbeiten
 async function editUser(id) {
     try {
-        const response = await fetch(`get_user.php?id=${id}`);
+        const response = await fetch(`api/users/get.php?id=${id}`);
         const data = await response.json();
         
         if (data.success) {
@@ -292,21 +292,17 @@ async function editUser(id) {
 
 // Benutzer speichern
 async function saveUser() {
-    const formData = {
-        id: document.getElementById('edit_user_id').value,
-        username: document.getElementById('edit_username').value,
-        password: document.getElementById('edit_password').value,
-        role: document.getElementById('edit_role').value,
-        active: document.getElementById('edit_active').checked ? 1 : 0
-    };
+    const formData = new FormData();
+    formData.append('id', document.getElementById('edit_user_id').value);
+    formData.append('username', document.getElementById('edit_username').value);
+    formData.append('password', document.getElementById('edit_password').value || '');
+    formData.append('role', document.getElementById('edit_role').value);
+    formData.append('active', document.getElementById('edit_active').checked ? '1' : '0');
 
     try {
-        const response = await fetch('update_user.php', {
+        const response = await fetch('api/users/update.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
+            body: formData
         });
 
         const result = await response.json();
@@ -314,11 +310,11 @@ async function saveUser() {
         if (result.success) {
             location.reload();
         } else {
-            alert(result.message || 'Fehler beim Speichern der Änderungen');
+            alert(result.message || 'Fehler beim Aktualisieren des Benutzers');
         }
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Speichern der Änderungen');
+        alert('Fehler beim Aktualisieren des Benutzers');
     }
 }
 
@@ -328,13 +324,13 @@ async function deleteUser(id) {
         return;
     }
 
+    const formData = new FormData();
+    formData.append('id', id);
+
     try {
-        const response = await fetch('delete_user.php', {
+        const response = await fetch('api/users/delete.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id: id })
+            body: formData
         });
 
         const result = await response.json();

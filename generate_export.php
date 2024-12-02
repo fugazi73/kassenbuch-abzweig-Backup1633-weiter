@@ -1,8 +1,12 @@
 <?php
-session_start();
+// Verhindere jegliche Ausgabe
+ob_start();
+
+// Grundlegende Includes
 require_once 'config.php';
 require_once 'functions.php';
-require_once 'includes/init.php';
+require_once 'includes/auth.php';
+require_once 'includes/permissions.php';
 require_once 'vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -13,68 +17,58 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 
-if (!is_admin()) {
-    handle_forbidden();
+// Session starten, falls noch nicht geschehen
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Prüfe Berechtigung
+if (!check_permission('export')) {
+    ob_end_clean();
+    header('Location: error.php?message=' . urlencode('Keine Berechtigung'));
+    exit;
 }
 
 try {
-    // Datumskonvertierung von deutschem Format (DD.MM.YYYY) zu MySQL Format (YYYY-MM-DD)
-    $von = isset($_GET['von']) ? DateTime::createFromFormat('d.m.Y', $_GET['von'])->format('Y-m-d') : '';
-    $bis = isset($_GET['bis']) ? DateTime::createFromFormat('d.m.Y', $_GET['bis'])->format('Y-m-d') : '';
+    // Datumskonvertierung
+    $von = isset($_GET['von']) ? DateTime::createFromFormat('d.m.Y', $_GET['von'])->format('Y-m-d') : date('Y-m-01');
+    $bis = isset($_GET['bis']) ? DateTime::createFromFormat('d.m.Y', $_GET['bis'])->format('Y-m-d') : date('Y-m-t');
     $format = $_GET['format'] ?? 'xlsx';
 
-    // Prüfe ob das Exportverzeichnis existiert
-    if (!file_exists('exports')) {
-        mkdir('exports', 0777, true);
-    }
-
-    // Generiere eindeutigen Dateinamen
-    $filename = 'Kassenbuch_Export_' . date('Y-m-d_His') . '.' . $format;
-    $filepath = 'exports/' . $filename;
-
-    // Hole den aktuellen Kassenstand und Startbetrag
-    $sql = "SELECT 
-        (SELECT COALESCE(einnahme, 0) 
-         FROM kassenbuch_eintraege 
-         WHERE bemerkung = 'Kassenstart' 
-         ORDER BY datum DESC, id DESC 
-         LIMIT 1) as startbetrag,
-        (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
-         FROM kassenbuch_eintraege) as gesamt_kassenstand";
-
-    $result = $conn->query($sql);
-    $kasseninfo = $result->fetch_assoc();
-    $startbetrag = $kasseninfo['startbetrag'];
-    $current_kassenstand = $kasseninfo['gesamt_kassenstand'];
-
     // Hole die Einträge mit Saldo
-    $sql = "WITH RECURSIVE running_balance AS (
-        SELECT 
-            datum,
-            einnahme,
-            ausgabe,
-            bemerkung,
-            id,
-            @running_total := ? as initial_balance,
-            (@running_total := @running_total + COALESCE(einnahme, 0) - COALESCE(ausgabe, 0)) as saldo
-        FROM 
-            kassenbuch_eintraege,
-            (SELECT @running_total := ?) r
-        WHERE 
-            datum BETWEEN ? AND ?
-            AND bemerkung != 'Kassenstart'
-        ORDER BY 
-            datum ASC, id ASC
-    )
-    SELECT * FROM running_balance";
+    $sql = "SELECT 
+        ke.*,
+        (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
+         FROM kassenbuch_eintraege k2 
+         WHERE k2.datum <= ke.datum AND k2.id <= ke.id) as saldo
+        FROM kassenbuch_eintraege ke
+        WHERE ke.datum BETWEEN ? AND ?
+        ORDER BY ke.datum ASC, ke.id ASC";
 
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ddss", $current_kassenstand, $current_kassenstand, $von, $bis);
+    $stmt->bind_param("ss", $von, $bis);
     $stmt->execute();
     $result = $stmt->get_result();
     $data = $result->fetch_all(MYSQLI_ASSOC);
 
-    // Hole die Firmeninformationen aus den Einstellungen
+    // Erstelle Spreadsheet
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Seiteneinstellungen
+    $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
+    $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+
+    // Titel
+    $sheet->mergeCells('A1:E1');
+    $sheet->setCellValue('A1', 'Kassenbuch');
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 14],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D3D3D3']]
+    ]);
+
+    // Hole Firmeninformationen aus den Einstellungen
     $company_info = [];
     $company_settings = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('company_name', 'company_street', 'company_zip', 'company_city')");
     while ($row = $company_settings->fetch_assoc()) {
@@ -91,115 +85,78 @@ try {
         if (!empty($company_info['company_zip']) || !empty($company_info['company_city'])) {
             $company_address .= ', ' . $company_info['company_zip'] . ' ' . $company_info['company_city'];
         }
-    } else {
-        $company_address = 'Mustermann GmbH, Musterstrasse 4, 8280 Kreuzlingen';
     }
 
-    // Excel erstellen
-    $spreadsheet = new Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-    
-    // Seiteneinstellungen
-    $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
-    $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
-    
-    // Spaltenbreiten
-    $sheet->getColumnDimension('A')->setWidth(10);   // Beleg-Nr.
-    $sheet->getColumnDimension('B')->setWidth(15);   // Datum
-    $sheet->getColumnDimension('C')->setWidth(50);   // Buchungstext
-    $sheet->getColumnDimension('D')->setWidth(20);   // Einnahmen
-    $sheet->getColumnDimension('E')->setWidth(20);   // Ausgaben
-    
-    // Titel
-    $sheet->mergeCells('A1:E1');
-    $sheet->setCellValue('A1', 'Kassenbuch');
-    $sheet->getStyle('A1')->applyFromArray([
-        'font' => ['bold' => true, 'size' => 14],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D3D3D3']]
-    ]);
-    
+    // Hole den aktuellen Kassenstand
+    $sql = "SELECT 
+        (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
+         FROM kassenbuch_eintraege 
+         WHERE datum < ?) as anfangsbestand";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $von);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $kasseninfo = $result->fetch_assoc();
+    $anfangsbestand = $kasseninfo['anfangsbestand'];
+
     // Firmeninfo
     $sheet->setCellValue('A2', 'Firma');
     $sheet->setCellValue('B2', $company_address);
     $sheet->mergeCells('B2:E2');
     $sheet->getStyle('A2')->getFont()->setBold(true);
-    
+
     // Linke Spalte: Seite, Jahr, Monat
     $sheet->setCellValue('A3', 'Seite');
     $sheet->setCellValue('B3', '1');
-    $sheet->getStyle('B3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+
     $sheet->setCellValue('A4', 'Jahr');
     $sheet->setCellValue('B4', date('Y', strtotime($von)));
-    $sheet->getStyle('B4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+
     $sheet->setCellValue('A5', 'Monat');
     $sheet->setCellValue('B5', date('F', strtotime($von)));
-    $sheet->getStyle('B5')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+
     // Rechte Spalte: Kassenbestand
     $sheet->setCellValue('D3', 'Anfangsbestand');
-    $sheet->setCellValue('E3', $current_kassenstand);
-    $sheet->getStyle('E3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+    $sheet->setCellValue('E3', $anfangsbestand);
+
+    // Berechne Summen für den Kopfbereich
+    $sumEinnahmen = array_sum(array_column($data, 'einnahme'));
+    $sumAusgaben = array_sum(array_column($data, 'ausgabe'));
+
     $sheet->setCellValue('D4', 'Einnahmen');
-    $sheet->setCellValue('E4', '=SUM(D9:D33)');
-    $sheet->getStyle('E4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+    $sheet->setCellValue('E4', $sumEinnahmen);
+
     $sheet->setCellValue('D5', 'Ausgaben');
-    $sheet->setCellValue('E5', '=SUM(E9:E33)');
-    $sheet->getStyle('E5')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+    $sheet->setCellValue('E5', $sumAusgaben);
+
+    $aktuellerBestand = $anfangsbestand + $sumEinnahmen - $sumAusgaben;
     $sheet->setCellValue('D6', 'Aktueller Kassenbestand');
-    $sheet->setCellValue('E6', '=E3+E4-E5');
-    $sheet->getStyle('E6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-    
+    $sheet->setCellValue('E6', $aktuellerBestand);
+
     // Formatierung der Beschriftungen
     $sheet->getStyle('A3:A5')->getFont()->setBold(true);
     $sheet->getStyle('D3:D6')->getFont()->setBold(true);
-    
+
     // Tabellenkopf
     $sheet->setCellValue('A8', 'Beleg-Nr.');
     $sheet->setCellValue('B8', 'Datum');
     $sheet->setCellValue('C8', 'Buchungstext/Belegtext');
     $sheet->setCellValue('D8', 'Einnahmen (€)');
     $sheet->setCellValue('E8', 'Ausgaben (€)');
-    
+
     // Formatierung Tabellenkopf
     $sheet->getStyle('A8:E8')->applyFromArray([
         'font' => ['bold' => true],
-        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']]
+        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
     ]);
-    
+
     // Daten einfügen
     $row = 9;
-    $lastRow = $row + 24; // 25 Zeilen
-    
-    // Leere Zeilen vorbereiten
-    for ($i = $row; $i <= $lastRow; $i++) {
-        $sheet->setCellValue("A$i", $i-8);
-        // Rahmen für jede Zelle
-        $sheet->getStyle("A$i:E$i")->applyFromArray([
-            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
-        ]);
-        // Hellgrauer Hintergrund für gerade Zeilen
-        if (($i-8) % 2 == 0) {
-            $sheet->getStyle("A$i:E$i")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0F0F0');
-        }
-    }
-    
-    // Echte Daten einfügen
-    foreach ($data as $entry) {
-        if ($row > $lastRow) break;
-        
-        $date = DateTime::createFromFormat('Y-m-d', $entry['datum'])->format('d.m.Y');
-        
-        $sheet->setCellValue("A$row", $row-8);
-        $sheet->setCellValue("B$row", $date);
+    foreach ($data as $index => $entry) {
+        $sheet->setCellValue("A$row", $index + 1);
+        $sheet->setCellValue("B$row", date('d.m.Y', strtotime($entry['datum'])));
         $sheet->setCellValue("C$row", $entry['bemerkung']);
-        
+
         // Einnahmen in Grün
         if ($entry['einnahme'] > 0) {
             $sheet->setCellValue("D$row", $entry['einnahme']);
@@ -213,292 +170,227 @@ try {
             $sheet->getStyle("E$row")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
             $sheet->getStyle("E$row")->getFont()->setBold(true);
         }
-        
+
+        // Rahmen für jede Zelle
+        $sheet->getStyle("A$row:E$row")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
+        ]);
+
         $row++;
     }
-    
+
     // Summenzeile
-    $sumRow = $lastRow + 1;
-    $sheet->mergeCells("A$sumRow:C$sumRow");
-    $sheet->setCellValue("A$sumRow", 'Summe');
-    $sheet->setCellValue("D$sumRow", "=SUM(D9:D$lastRow)");
-    $sheet->setCellValue("E$sumRow", "=SUM(E9:E$lastRow)");
-    
+    $lastRow = $row - 1;
+    $sheet->mergeCells("A$row:C$row");
+    $sheet->setCellValue("A$row", 'Summe');
+    $sheet->setCellValue("D$row", "=SUM(D9:D$lastRow)");
+    $sheet->setCellValue("E$row", "=SUM(E9:E$lastRow)");
+
     // Saldo
-    $saldoRow = $sumRow + 1;
-    $sheet->mergeCells("A$saldoRow:D$saldoRow");
-    $sheet->setCellValue("A$saldoRow", 'Saldo');
-    $sheet->setCellValue("E$saldoRow", "=D$sumRow-E$sumRow");
-    
-    // Formatiere Summen und Saldo
-    $sheet->getStyle("D$sumRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
-    $sheet->getStyle("E$sumRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
-    if ($sheet->getCell("E$saldoRow")->getCalculatedValue() >= 0) {
-        $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
-    } else {
-        $sheet->getStyle("E$saldoRow")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
-    }
-    
-    // Formatierung
-    // Währungsformat mit genau 2 Dezimalstellen
+    $row++;
+    $sheet->mergeCells("A$row:D$row");
+    $sheet->setCellValue("A$row", 'Saldo');
+    $sheet->setCellValue("E$row", "=D" . ($row-1) . "-E" . ($row-1));
+
+    // Formatierung der Summen und Saldo
+    $sheet->getStyle("A" . ($row-1) . ":E$row")->applyFromArray([
+        'font' => ['bold' => true],
+        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
+    ]);
+
+    // Spaltenbreiten
+    $sheet->getColumnDimension('A')->setWidth(10);   // Beleg-Nr.
+    $sheet->getColumnDimension('B')->setWidth(15);   // Datum
+    $sheet->getColumnDimension('C')->setWidth(50);   // Buchungstext
+    $sheet->getColumnDimension('D')->setWidth(20);   // Einnahmen
+    $sheet->getColumnDimension('E')->setWidth(20);   // Ausgaben
+
+    // Währungsformat
     $numberFormat = NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2;
     $sheet->getStyle('E3:E6')->getNumberFormat()->setFormatCode($numberFormat . ' €');
-    $sheet->getStyle("D9:E$lastRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
-    $sheet->getStyle("D$sumRow:E$saldoRow")->getNumberFormat()->setFormatCode($numberFormat . ' €');
-    
-    // Runde alle Zahlen auf 2 Dezimalstellen
-    foreach($data as $entry) {
-        if ($entry['einnahme'] > 0) {
-            $entry['einnahme'] = round($entry['einnahme'], 2);
-        }
-        if ($entry['ausgabe'] > 0) {
-            $entry['ausgabe'] = round($entry['ausgabe'], 2);
-        }
-    }
-    
-    // Ausrichtung
-    $sheet->getStyle('A8:A'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    $sheet->getStyle('D8:E'.$saldoRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-    
-    // Rahmen für Summe und Saldo
-    $sheet->getStyle("A$sumRow:E$saldoRow")->applyFromArray([
-        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
-        'font' => ['bold' => true],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']]
-    ]);
-    
-    // Formatierung der Spalten
-    $sheet->getStyle('A1:E1')->getFont()->setBold(true);
-    $sheet->getStyle('C:D')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2);
-    $sheet->getStyle('E:E')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2);
+    $sheet->getStyle("D9:E$row")->getNumberFormat()->setFormatCode($numberFormat . ' €');
 
-    // Farbliche Formatierung für Einnahmen/Ausgaben/Kassenstand
-    foreach ($sheet->getRowIterator(9, $lastRow) as $row) {
-        $rowIndex = $row->getRowIndex();
-        
-        // Einnahmen grün
-        $einnahme = $sheet->getCell('D'.$rowIndex)->getValue();
-        if ($einnahme > 0) {
-            $sheet->getStyle('D'.$rowIndex)->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
-            $sheet->getStyle('D'.$rowIndex)->getFont()->setBold(true);
-        }
-        
-        // Ausgaben rot
-        $ausgabe = $sheet->getCell('E'.$rowIndex)->getValue();
-        if ($ausgabe > 0) {
-            $sheet->getStyle('E'.$rowIndex)->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
-            $sheet->getStyle('E'.$rowIndex)->getFont()->setBold(true);
-        }
-    }
-    
-    // Speichere Datei je nach Format
+    // Ausrichtung
+    $sheet->getStyle('A8:A' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle('D8:E' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+    // Lösche den Output-Buffer
+    ob_end_clean();
+
+    // Setze die korrekten Header je nach Format
     switch($format) {
-        case 'xlsx':
-            $writer = new Xlsx($spreadsheet);
-            // Speichere die Datei physisch für die Historie
-            $writer->save($filepath);
-            
-            // Sende die Datei zum Download
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            header('Content-Disposition: attachment;filename="' . $filename . '"');
-            header('Cache-Control: max-age=0');
-            readfile($filepath);
-            break;
-            
         case 'csv':
-            $writer = new Csv($spreadsheet);
-            // Speichere die Datei physisch für die Historie
-            $writer->save($filepath);
-            
-            // Sende die Datei zum Download
             header('Content-Type: text/csv');
-            header('Content-Disposition: attachment;filename="' . $filename . '"');
-            header('Cache-Control: max-age=0');
-            readfile($filepath);
+            header('Content-Disposition: attachment;filename="Kassenbuch_Export_' . date('Y-m-d_His') . '.csv"');
+            $writer = new Csv($spreadsheet);
+            $writer->setDelimiter(';');
+            $writer->setEnclosure('"');
+            $writer->setLineEnding("\r\n");
+            $writer->setSheetIndex(0);
             break;
             
         case 'pdf':
-            // PDF Export mit TCPDF
-            require_once('vendor/tecnickcom/tcpdf/tcpdf.php');
+            require_once 'vendor/tecnickcom/tcpdf/tcpdf.php';
             
-            // Stelle sicher, dass das Exportverzeichnis existiert
-            if (!is_dir('exports')) {
-                mkdir('exports', 0777, true);
+            // Hole Firmeninformationen aus den Einstellungen
+            $company_info = [];
+            $company_settings = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('company_name', 'company_street', 'company_zip', 'company_city')");
+            while ($row = $company_settings->fetch_assoc()) {
+                $company_info[$row['setting_key']] = $row['setting_value'];
             }
             
-            // Erstelle den absoluten Pfad für die PDF-Datei
-            $pdf_file = __DIR__ . DIRECTORY_SEPARATOR . 'exports' . DIRECTORY_SEPARATOR . basename($filename);
-            
+            // Erstelle die Firmenadresse
+            $company_address = '';
+            if (!empty($company_info['company_name'])) {
+                $company_address .= $company_info['company_name'];
+                if (!empty($company_info['company_street'])) {
+                    $company_address .= ', ' . $company_info['company_street'];
+                }
+                if (!empty($company_info['company_zip']) || !empty($company_info['company_city'])) {
+                    $company_address .= ', ' . $company_info['company_zip'] . ' ' . $company_info['company_city'];
+                }
+            }
+
+            // Hole den aktuellen Kassenstand
+            $sql = "SELECT 
+                (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
+                 FROM kassenbuch_eintraege 
+                 WHERE datum < ?) as anfangsbestand";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("s", $von);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $kasseninfo = $result->fetch_assoc();
+            $anfangsbestand = $kasseninfo['anfangsbestand'];
+
             // Erstelle PDF
             $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8');
-            
-            // Entferne Standard-Header/Footer
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
-            
-            // Setze Dokumenteigenschaften
-            $pdf->SetCreator('Kassenbuch System');
-            $pdf->SetAuthor('System');
-            $pdf->SetTitle('Kassenbuch Export');
             
             // Füge Seite hinzu
             $pdf->AddPage();
             
-            // Setze Schriftart
-            $pdf->SetFont('helvetica', '', 11);
-            
             // Titel
-            $pdf->SetFillColor(211, 211, 211);
-            $pdf->Cell(0, 10, 'Kassenbuch', 1, 1, 'C', true);
+            $pdf->SetFont('helvetica', 'B', 14);
+            $pdf->Cell(0, 10, 'Kassenbuch', 0, 1, 'C');
+            $pdf->Ln(2);
             
-            // Firmeninfo
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(30, 8, 'Firma:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(0, 8, $company_address, 0, 1);
+            // Firmeninfo und Details
+            $pdf->SetFont('helvetica', '', 10);
             
             // Linke Spalte
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(30, 8, 'Seite:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(60, 8, '1', 0, 0);
+            $pdf->Cell(20, 6, 'Firma:', 0, 0);
+            $pdf->Cell(90, 6, $company_address, 0, 0);
             
             // Rechte Spalte
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(50, 8, 'Anfangsbestand:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(0, 8, number_format($current_kassenstand, 2, ',', '.') . ' €', 0, 1);
+            $pdf->Cell(40, 6, 'Anfangsbestand', 0, 0);
+            $pdf->Cell(30, 6, number_format($anfangsbestand, 2, ',', '.') . ' €', 0, 1, 'R');
             
-            // Zweite Zeile
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(30, 8, 'Jahr:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(60, 8, date('Y', strtotime($von)), 0, 0);
+            $pdf->Cell(20, 6, 'Seite:', 0, 0);
+            $pdf->Cell(90, 6, '1', 0, 0);
             
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(50, 8, 'Einnahmen:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
+            // Berechne Summen für den Kopfbereich
             $sumEinnahmen = array_sum(array_column($data, 'einnahme'));
-            $pdf->Cell(0, 8, number_format($sumEinnahmen, 2, ',', '.') . ' €', 0, 1);
+            $pdf->Cell(40, 6, 'Einnahmen', 0, 0);
+            $pdf->Cell(30, 6, number_format($sumEinnahmen, 2, ',', '.') . ' €', 0, 1, 'R');
             
-            // Dritte Zeile
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(30, 8, 'Monat:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $pdf->Cell(60, 8, date('F', strtotime($von)), 0, 0);
+            $pdf->Cell(20, 6, 'Jahr:', 0, 0);
+            $pdf->Cell(90, 6, date('Y', strtotime($von)), 0, 0);
             
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(50, 8, 'Ausgaben:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
             $sumAusgaben = array_sum(array_column($data, 'ausgabe'));
-            $pdf->Cell(0, 8, number_format($sumAusgaben, 2, ',', '.') . ' €', 0, 1);
+            $pdf->Cell(40, 6, 'Ausgaben', 0, 0);
+            $pdf->Cell(30, 6, number_format($sumAusgaben, 2, ',', '.') . ' €', 0, 1, 'R');
             
-            // Vierte Zeile (nur rechts)
-            $pdf->Cell(90, 8, '', 0, 0);
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(50, 8, 'Aktueller Kassenbestand:', 0, 0);
-            $pdf->SetFont('helvetica', '', 11);
-            $aktuellerBestand = $current_kassenstand + $sumEinnahmen - $sumAusgaben;
-            $pdf->Cell(0, 8, number_format($aktuellerBestand, 2, ',', '.') . ' €', 0, 1);
+            $pdf->Cell(20, 6, 'Monat:', 0, 0);
+            $pdf->Cell(90, 6, date('F', strtotime($von)), 0, 0);
             
-            // Abstand vor Tabelle
+            $aktuellerBestand = $anfangsbestand + $sumEinnahmen - $sumAusgaben;
+            $pdf->Cell(40, 6, 'Aktueller Kassenbestand', 0, 0);
+            $pdf->Cell(30, 6, number_format($aktuellerBestand, 2, ',', '.') . ' €', 0, 1, 'R');
+            
             $pdf->Ln(5);
             
             // Tabellenkopf
-            $pdf->SetFillColor(255, 255, 255);
-            $pdf->SetFont('helvetica', 'B', 11);
-            $header = array('Beleg-Nr.', 'Datum', 'Buchungstext/Belegtext', 'Einnahmen (€)', 'Ausgaben (€)');
-            $w = array(20, 25, 75, 35, 35);
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->SetFillColor(200, 200, 200);
             
-            foreach($header as $i => $h) {
-                $pdf->Cell($w[$i], 8, $h, 1, 0, 'C', true);
+            // Behalte die aktuellen Spaltenbreiten bei
+            $widths = [25, 20, 65, 25, 25, 25];
+            $headers = ['Datum', 'Beleg-Nr.', 'Buchungstext/Belegtext', 'Einnahmen (€)', 'Ausgaben (€)', 'Saldo'];
+            
+            foreach($headers as $i => $header) {
+                $pdf->Cell($widths[$i], 7, $header, 1, 0, 'C', true);
             }
             $pdf->Ln();
             
             // Tabelleninhalt
-            $pdf->SetFont('helvetica', '', 11);
+            $pdf->SetFont('helvetica', '', 10);
+            $pdf->SetFillColor(245, 245, 245);
             $fill = false;
-            $counter = 1;
             
-            // Fülle 25 Zeilen
-            for($i = 1; $i <= 25; $i++) {
-                $rowData = array_shift($data);
+            foreach($data as $row) {
+                $pdf->Cell($widths[0], 6, date('d.m.Y', strtotime($row['datum'])), 1, 0, 'L', $fill);
+                $pdf->Cell($widths[1], 6, $row['beleg_nr'], 1, 0, 'L', $fill);
+                $pdf->Cell($widths[2], 6, $row['bemerkung'], 1, 0, 'L', $fill);
                 
-                if($rowData) {
-                    $date = DateTime::createFromFormat('Y-m-d', $rowData['datum'])->format('d.m.Y');
-                    $einnahme = $rowData['einnahme'] > 0 ? number_format($rowData['einnahme'], 2, ',', '.') : '';
-                    $ausgabe = $rowData['ausgabe'] > 0 ? number_format($rowData['ausgabe'], 2, ',', '.') : '';
-                    
-                    $pdf->Cell($w[0], 8, $counter, 1, 0, 'C', $fill);
-                    $pdf->Cell($w[1], 8, $date, 1, 0, 'L', $fill);
-                    $pdf->Cell($w[2], 8, $rowData['bemerkung'], 1, 0, 'L', $fill);
-                    
-                    // Einnahmen in Grün
-                    if ($rowData['einnahme'] > 0) {
-                        $pdf->SetTextColor(0, 128, 0);
-                    }
-                    $pdf->Cell($w[3], 8, $einnahme, 1, 0, 'R', $fill);
-                    $pdf->SetTextColor(0, 0, 0);
-                    
-                    // Ausgaben in Rot
-                    if ($rowData['ausgabe'] > 0) {
-                        $pdf->SetTextColor(128, 0, 0);
-                    }
-                    $pdf->Cell($w[4], 8, $ausgabe, 1, 0, 'R', $fill);
-                    $pdf->SetTextColor(0, 0, 0);
+                // Einnahmen in Grün
+                if ($row['einnahme'] > 0) {
+                    $pdf->SetTextColor(0, 120, 0);
+                    $pdf->Cell($widths[3], 6, number_format($row['einnahme'], 2, ',', '.'), 1, 0, 'R', $fill);
+                    $pdf->SetTextColor(0);
                 } else {
-                    $pdf->Cell($w[0], 8, $counter, 1, 0, 'C', $fill);
-                    $pdf->Cell($w[1], 8, '', 1, 0, 'L', $fill);
-                    $pdf->Cell($w[2], 8, '', 1, 0, 'L', $fill);
-                    $pdf->Cell($w[3], 8, '', 1, 0, 'R', $fill);
-                    $pdf->Cell($w[4], 8, '', 1, 0, 'R', $fill);
+                    $pdf->Cell($widths[3], 6, '', 1, 0, 'R', $fill);
                 }
                 
+                // Ausgaben in Rot
+                if ($row['ausgabe'] > 0) {
+                    $pdf->SetTextColor(120, 0, 0);
+                    $pdf->Cell($widths[4], 6, number_format($row['ausgabe'], 2, ',', '.'), 1, 0, 'R', $fill);
+                    $pdf->SetTextColor(0);
+                } else {
+                    $pdf->Cell($widths[4], 6, '', 1, 0, 'R', $fill);
+                }
+                
+                // Saldo
+                $pdf->Cell($widths[5], 6, number_format($row['saldo'], 2, ',', '.'), 1, 0, 'R', $fill);
+                
                 $pdf->Ln();
-                $counter++;
                 $fill = !$fill;
             }
             
             // Summenzeile
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell(array_sum(array_slice($w, 0, 3)), 8, 'Summe', 1, 0, 'L');
-            $pdf->Cell($w[3], 8, number_format($sumEinnahmen, 2, ',', '.'), 1, 0, 'R');
-            $pdf->Cell($w[4], 8, number_format($sumAusgaben, 2, ',', '.'), 1, 1, 'R');
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->SetFillColor(200, 200, 200);
             
-            // Saldozeile
-            $saldo = $sumEinnahmen - $sumAusgaben;
-            $pdf->Cell(array_sum(array_slice($w, 0, 4)), 8, 'Saldo', 1, 0, 'L');
-            $pdf->SetTextColor(0, 128, 0); // Grün für positiven Saldo
-            $pdf->Cell($w[4], 8, number_format($saldo, 2, ',', '.'), 1, 1, 'R');
+            $pdf->Cell(array_sum(array_slice($widths, 0, 3)), 7, 'Summen:', 1, 0, 'R', true);
+            $pdf->Cell($widths[3], 7, number_format($sumEinnahmen, 2, ',', '.'), 1, 0, 'R', true);
+            $pdf->Cell($widths[4], 7, number_format($sumAusgaben, 2, ',', '.'), 1, 0, 'R', true);
+            $pdf->Cell($widths[5], 7, number_format($aktuellerBestand, 2, ',', '.'), 1, 0, 'R', true);
             
-            // Speichere die PDF physisch für die Historie
-            $pdf->Output($pdf_file, 'F');
+            // Sende PDF zum Download
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment;filename="Kassenbuch_Export_' . date('Y-m-d_His') . '.pdf"');
+            $pdf->Output('D');
+            exit;
             
-            // Sende die Datei zum Download
-            $pdf->Output($filename, 'D');
-            break;
-            
+        case 'xlsx':
         default:
-            throw new Exception('Ungültiges Export-Format');
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="Kassenbuch_Export_' . date('Y-m-d_His') . '.xlsx"');
+            $writer = new Xlsx($spreadsheet);
+            break;
     }
 
-    // Speichere in Historie
-    $sql = "INSERT INTO export_history (date_from, date_to, format, filename, created_by) 
-            VALUES (?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssss", 
-        $von,
-        $bis,
-        $format,
-        $filename,
-        $_SESSION['username']
-    );
-    $stmt->execute();
+    // Sende die Datei direkt zum Download (nur für Excel und CSV)
+    if ($format !== 'pdf') {
+        $writer->save('php://output');
+    }
+    exit;
 
 } catch (Exception $e) {
-    // Fehlerbehandlung
-    header('HTTP/1.1 500 Internal Server Error');
-    echo "Fehler beim Export: " . $e->getMessage();
+    ob_end_clean();
+    header('Location: error.php?message=' . urlencode('Fehler beim Export: ' . $e->getMessage()));
     exit;
 }
   
