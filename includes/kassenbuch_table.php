@@ -113,9 +113,35 @@ function buildPaginationUrl($page) {
 
 <div class="table-responsive">
     <?php if (check_permission('delete_entries')): ?>
-    <div class="mb-3">
-        <button type="button" id="massDeleteBtn" class="btn btn-danger" style="display: none;">
-            <i class="bi bi-trash"></i> Ausgewählte Einträge löschen
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="d-flex align-items-center">
+            <input type="checkbox" id="selectAll" class="form-check-input me-2">
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-check2-square"></i> Auswahl
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item" href="#" id="selectCurrentPage">
+                            <i class="bi bi-file-text"></i> Aktuelle Seite markieren
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#" id="selectAllPages">
+                            <i class="bi bi-files"></i> Alle Einträge markieren
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" id="deselectAll">
+                            <i class="bi bi-x-square"></i> Auswahl aufheben
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <button type="button" id="massDeleteBtn" class="btn btn-sm btn-danger" style="display: none;">
+            <i class="bi bi-trash"></i> <span class="delete-count"></span>
         </button>
     </div>
     <?php endif; ?>
@@ -165,8 +191,8 @@ function buildPaginationUrl($page) {
         <thead>
             <tr>
                 <?php if (check_permission('delete_entries')): ?>
-                <th>
-                    <input type="checkbox" id="selectAll" class="form-check-input">
+                <th style="width: 40px;">
+                    <div class="text-center">#</div>
                 </th>
                 <?php endif; ?>
                 <th>Datum</th>
@@ -183,8 +209,11 @@ function buildPaginationUrl($page) {
             <?php foreach ($entries as $entry): ?>
                 <tr>
                     <?php if (check_permission('delete_entries')): ?>
-                    <td>
-                        <input type="checkbox" class="form-check-input entry-checkbox" value="<?= $entry['id'] ?>">
+                    <td class="text-center">
+                        <input type="checkbox" 
+                               class="form-check-input entry-checkbox" 
+                               data-entry-id="<?= $entry['id'] ?>"
+                               value="<?= $entry['id'] ?>">
                     </td>
                     <?php endif; ?>
                     <td><?= date('d.m.Y', strtotime($entry['datum'])) ?></td>

@@ -356,17 +356,19 @@ $(document).ready(function() {
 
     // Initial theme update
     updateSelect2Theme();
+    updateReadonlyStyle();
 
     // Update theme when it changes
-    const observer = new MutationObserver(function(mutations) {
+    const themeObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.attributeName === 'data-bs-theme') {
                 updateSelect2Theme();
+                updateReadonlyStyle();
             }
         });
     });
 
-    observer.observe(document.documentElement, {
+    themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-bs-theme']
     });
@@ -397,6 +399,291 @@ $(document).ready(function() {
             $('input[name="von_datum"]').val('');
             $('input[name="bis_datum"]').val('');
         }
+    });
+
+    // Bootstrap Modal Handling
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+    
+    // Bearbeiten-Funktion
+    window.editEntry = function(id) {
+        // Lade die Daten des Eintrags
+        $.ajax({
+            url: 'api/edit_entry.php',
+            type: 'GET',
+            data: { id: id },
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success && response.entry) {
+                    // Fülle das Modal mit den Daten
+                    const entry = response.entry;
+                    const form = $('#editEntryForm');
+                    form.find('[name="id"]').val(entry.id);
+                    form.find('[name="datum"]').val(entry.datum);
+                    form.find('[name="beleg_nr"]').val(entry.beleg_nr);
+                    form.find('[name="bemerkung"]').val(entry.bemerkung);
+                    form.find('[name="einnahme"]').val(entry.einnahme || '0.00');
+                    form.find('[name="ausgabe"]').val(entry.ausgabe || '0.00');
+                    
+                    // Zeige das Modal
+                    editModal.show();
+                } else {
+                    showAlert(response?.message || 'Fehler beim Laden des Eintrags');
+                }
+            },
+            error: function(xhr, status, error) {
+                showAlert('Fehler', 'Fehler beim Laden des Eintrags: ' + (error || 'Unbekannter Fehler'));
+            }
+        });
+    };
+
+    // Speichern der Änderungen
+    $('#editEntryForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = $(this).serialize();
+
+        $.ajax({
+            url: 'api/edit_entry.php',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success) {
+                    editModal.hide();
+                    // Entferne alle Modal-Backdrops
+                    $('.modal-backdrop').remove();
+                    // Aktualisiere die Seite nach kurzer Verzögerung
+                    setTimeout(() => {
+                        location.reload();
+                    }, 100);
+                } else {
+                    showAlert(response?.message || 'Fehler beim Speichern');
+                }
+            },
+            error: function(xhr, status, error) {
+                showAlert('Fehler', 'Fehler beim Speichern: ' + (error || 'Unbekannter Fehler'));
+            }
+        });
+    });
+
+    // Löschen-Funktion
+    window.deleteEntry = function(id) {
+        if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
+            $.ajax({
+                url: 'api/delete_entry.php',
+                type: 'POST',
+                data: { id: id },
+                dataType: 'json',
+                success: function(response) {
+                    if (response && response.success) {
+                        // Aktualisiere die Seite nach kurzer Verzögerung
+                        setTimeout(() => {
+                            location.reload();
+                        }, 100);
+                    } else {
+                        showAlert(response?.message || 'Fehler beim Löschen');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showAlert('Fehler', 'Fehler beim Löschen: ' + (error || 'Unbekannter Fehler'));
+                }
+            });
+        }
+    };
+
+    // Fehleranzeige-Funktion
+    function showError(title, message) {
+        const errorHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>${title}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+            </div>
+        `;
+        // Füge die Fehlermeldung am Anfang der Tabelle ein
+        $('.table-responsive').prepend(errorHtml);
+    }
+
+    // Modal Event Listener
+    $('#editModal').on('hidden.bs.modal', function () {
+        // Entferne alle Modal-Backdrops
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+    });
+
+    // Massenauswahl-Funktionalität
+    $('#selectAll').on('change', function() {
+        $('.entry-checkbox').prop('checked', $(this).prop('checked'));
+        updateMassDeleteButton();
+    });
+
+    $('#selectCurrentPage').on('click', function(e) {
+        e.preventDefault();
+        $('.entry-checkbox').prop('checked', true);
+        updateMassDeleteButton();
+    });
+
+    $('#selectAllPages').on('click', function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: 'get_all_entry_ids.php',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success) {
+                    $('.entry-checkbox').prop('checked', true);
+                    updateMassDeleteButton(response.total);
+                }
+            }
+        });
+    });
+
+    $('#deselectAll').on('click', function(e) {
+        e.preventDefault();
+        $('.entry-checkbox').prop('checked', false);
+        updateMassDeleteButton();
+    });
+
+    $('.entry-checkbox').on('change', function() {
+        updateMassDeleteButton();
+    });
+
+    function updateMassDeleteButton() {
+        const checkedCount = $('.entry-checkbox:checked').length;
+        if (checkedCount > 0) {
+            $('#massDeleteBtn').show().find('.delete-count').text(
+                checkedCount + ' Einträge löschen'
+            );
+        } else {
+            $('#massDeleteBtn').hide();
+        }
+    }
+
+    $('#massDeleteBtn').on('click', function() {
+        const selectedIds = $('.entry-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        if (selectedIds.length === 0) return;
+
+        if (confirm('Möchten Sie die ausgewählten Einträge wirklich löschen?')) {
+            $.ajax({
+                url: 'mass_delete_entries.php',
+                type: 'POST',
+                data: { ids: selectedIds },
+                dataType: 'json',
+                success: function(response) {
+                    if (response && response.success) {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 100);
+                    } else {
+                        showAlert(response?.message || 'Fehler beim Löschen');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showAlert('Fehler', 'Fehler beim Löschen der Einträge: ' + (error || 'Unbekannter Fehler'));
+                }
+            });
+        }
+    });
+
+    // Funktion zur Validierung von Einnahmen und Ausgaben
+    function validateEinnahmeAusgabe(einnahmeField, ausgabeField) {
+        const einnahme = parseFloat(einnahmeField.val()) || 0;
+        const ausgabe = parseFloat(ausgabeField.val()) || 0;
+
+        if (einnahme > 0 && ausgabe > 0) {
+            showAlert('Ein Eintrag kann nicht gleichzeitig Einnahme und Ausgabe sein');
+            return false;
+        }
+
+        if (einnahme <= 0 && ausgabe <= 0) {
+            showAlert('Bitte geben Sie entweder eine Einnahme oder eine Ausgabe ein');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Funktion zum Aktualisieren der Feld-Zustände
+    function updateFieldStates(activeField, inactiveField) {
+        const activeValue = parseFloat(activeField.val()) || 0;
+        if (activeValue > 0) {
+            inactiveField.prop('readonly', true)
+                        .css('background-color', document.documentElement.getAttribute('data-bs-theme') === 'dark' 
+                            ? 'var(--bs-gray-700)' 
+                            : 'var(--bs-gray-200)')
+                        .attr('tabindex', '-1');
+        } else {
+            inactiveField.prop('readonly', false)
+                        .css('background-color', '')
+                        .removeAttr('tabindex');
+        }
+    }
+
+    // Event-Handler für Einnahme-Feld
+    $('input[name="einnahme"]').on('input', function() {
+        const einnahmeField = $(this);
+        const ausgabeField = einnahmeField.closest('form').find('input[name="ausgabe"]');
+        updateFieldStates(einnahmeField, ausgabeField);
+    });
+
+    // Event-Handler für Ausgabe-Feld
+    $('input[name="ausgabe"]').on('input', function() {
+        const ausgabeField = $(this);
+        const einnahmeField = ausgabeField.closest('form').find('input[name="einnahme"]');
+        updateFieldStates(ausgabeField, einnahmeField);
+    });
+
+    // Initialisierung der Felder beim Laden des Modals
+    $('#editModal').on('shown.bs.modal', function() {
+        const form = $(this).find('form');
+        const einnahmeField = form.find('input[name="einnahme"]');
+        const ausgabeField = form.find('input[name="ausgabe"]');
+        
+        // Prüfe initial welches Feld aktiv ist
+        if (parseFloat(einnahmeField.val()) > 0) {
+            updateFieldStates(einnahmeField, ausgabeField);
+        } else if (parseFloat(ausgabeField.val()) > 0) {
+            updateFieldStates(ausgabeField, einnahmeField);
+        }
+    });
+
+    // Dark Mode Anpassungen für readonly Felder
+    function updateReadonlyStyle() {
+        const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        $('input[readonly]').css('background-color', 
+            isDarkMode ? 'var(--bs-gray-700)' : 'var(--bs-gray-200)'
+        );
+    }
+
+    // Quick Entry Form Submit
+    $('#quickEntryForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const einnahmeField = $(this).find('input[name="einnahme"]');
+        const ausgabeField = $(this).find('input[name="ausgabe"]');
+
+        if (!validateEinnahmeAusgabe(einnahmeField, ausgabeField)) {
+            return;
+        }
+
+        // Rest des bestehenden Submit-Codes
+        // ... existing code ...
+    });
+
+    // Edit Form Submit
+    $('#editEntryForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const einnahmeField = $(this).find('input[name="einnahme"]');
+        const ausgabeField = $(this).find('input[name="ausgabe"]');
+
+        if (!validateEinnahmeAusgabe(einnahmeField, ausgabeField)) {
+            return;
+        }
+
+        // Rest des bestehenden Submit-Codes
+        // ... existing code ...
     });
 });
 </script>
@@ -652,6 +939,17 @@ datalist option:hover {
 
 [data-bs-theme="dark"] .btn-group .btn {
     border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Styles für readonly Felder */
+input[readonly] {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+[data-bs-theme="dark"] input[readonly] {
+    background-color: var(--bs-gray-700) !important;
+    border-color: var(--bs-gray-600) !important;
 }
 </style>
 

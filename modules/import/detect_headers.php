@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/init.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 
@@ -7,64 +8,66 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 header('Content-Type: application/json');
 
 try {
-    // Prüfe ob eine Datei hochgeladen wurde
-    if (!isset($_FILES['excel_file']) || $_FILES['excel_file']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception('Keine gültige Datei hochgeladen');
+    if (!isset($_FILES['excel_file'])) {
+        throw new Exception('Keine Datei gefunden');
     }
 
     $tmpFile = $_FILES['excel_file']['tmp_name'];
-    if (!file_exists($tmpFile)) {
-        throw new Exception('Temporäre Datei nicht gefunden');
-    }
-
-    // Prüfe Dateityp
-    $allowedTypes = [
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/csv',
-        'application/vnd.ms-excel',
-        '' // Für den Fall, dass der MIME-Type nicht erkannt wird
-    ];
-
-    $fileType = $_FILES['excel_file']['type'];
-    $extension = strtolower(pathinfo($_FILES['excel_file']['name'], PATHINFO_EXTENSION));
-    
-    if (!in_array($fileType, $allowedTypes) && !in_array($extension, ['xlsx', 'xls', 'csv'])) {
-        throw new Exception('Ungültiges Dateiformat. Erlaubt sind: xlsx, xls, csv');
+    if (!file_exists($tmpFile) || !is_readable($tmpFile)) {
+        throw new Exception('Datei nicht lesbar');
     }
 
     // Lade Excel-Datei
     $spreadsheet = IOFactory::load($tmpFile);
     $worksheet = $spreadsheet->getActiveSheet();
     
-    // Hole die erste Zeile für die Spaltenüberschriften
-    $headers = [];
-    foreach ($worksheet->getRowIterator(1, 1) as $row) {
-        foreach ($row->getCellIterator() as $cell) {
-            $headers[] = $cell->getValue();
+    // Hole Header-Zeile
+    $header_row = isset($_POST['header_row']) ? (int)$_POST['header_row'] : 1;
+    
+    // Hole die Spalten
+    $highestColumn = $worksheet->getHighestColumn();
+    $columns = [];
+    
+    // Hole die Spaltennamen aus der Header-Zeile
+    for ($col = 'A'; $col <= $highestColumn; $col++) {
+        $cell = $worksheet->getCell($col . $header_row);
+        $value = $cell->getValue();
+        
+        // Wenn kein Name in der Header-Zeile, verwende Spaltenbezeichnung
+        if (empty($value)) {
+            $value = 'Spalte ' . $col;
         }
+        
+        $columns[$col] = $value;
     }
 
-    // Hole ein paar Beispieldaten
-    $preview = [];
-    $maxPreviewRows = 5;
-    foreach ($worksheet->getRowIterator(2, min($worksheet->getHighestRow(), $maxPreviewRows + 1)) as $row) {
-        $rowData = [];
-        foreach ($row->getCellIterator() as $cell) {
-            $rowData[] = $cell->getValue();
+    // Automatische Zuordnung basierend auf Ähnlichkeiten
+    $suggested_mapping = [];
+    $standard_fields = [
+        'datum' => ['datum', 'date', 'tag', 'day'],
+        'beleg_nr' => ['beleg', 'belegnr', 'beleg-nr', 'beleg nr', 'nr', 'nummer'],
+        'bemerkung' => ['bemerkung', 'text', 'beschreibung', 'buchungstext'],
+        'einnahme' => ['einnahme', 'einnahmen', 'eingang', 'haben', 'soll'],
+        'ausgabe' => ['ausgabe', 'ausgaben', 'ausgang', 'soll', 'haben']
+    ];
+
+    foreach ($columns as $col => $name) {
+        $name_lower = strtolower(trim($name));
+        foreach ($standard_fields as $field => $keywords) {
+            if (in_array($name_lower, $keywords)) {
+                $suggested_mapping[$field] = $col;
+                break;
+            }
         }
-        $preview[] = $rowData;
     }
 
     echo json_encode([
         'success' => true,
-        'headers' => $headers,
-        'preview' => $preview,
-        'total_rows' => $worksheet->getHighestRow()
+        'columns' => $columns,
+        'suggested_mapping' => $suggested_mapping
     ]);
 
 } catch (Exception $e) {
-    error_log('Import Fehler: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

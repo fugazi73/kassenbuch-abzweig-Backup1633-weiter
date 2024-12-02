@@ -252,6 +252,17 @@ $basePath = $isInSubfolder ? '..' : '.';
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.15);
     }
     </style>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Zentrale Alert-Funktion -->
+    <script src="js/alerts.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles/custom.css">
 </head>
 <body class="d-flex flex-column min-vh-100">
     <header>
@@ -327,7 +338,7 @@ $basePath = $isInSubfolder ? '..' : '.';
                                 
                                 <?php if (check_permission('import_excel')): ?>
                                 <li>
-                                    <a class="dropdown-item" href="<?= $basePath ?>/import_excel.php">
+                                    <a class="dropdown-item" href="<?= $basePath ?>/import.php">
                                         <i class="bi bi-file-earmark-excel"></i> Excel Import
                                     </a>
                                 </li>

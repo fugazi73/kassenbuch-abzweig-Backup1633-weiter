@@ -4,45 +4,48 @@ require_once 'includes/init.php';
 require_once 'config.php';
 require_once 'functions.php';
 
-// Nur Admins dürfen diese Funktion nutzen
-if (!isset($_SESSION['user_role']) || !in_array($_SESSION['user_role'], ['admin'])) {
+// Berechtigungsprüfung
+if (!check_permission('delete_entries')) {
     http_response_code(403);
-    echo json_encode(['error' => 'Nicht autorisiert']);
+    echo json_encode(['error' => 'Keine Berechtigung zum Löschen von Einträgen']);
     exit;
 }
 
-// Prüfe ob IDs übergeben wurden
+// Lese und validiere die Eingabedaten
 $data = json_decode(file_get_contents('php://input'), true);
-if (!isset($data['ids']) || !is_array($data['ids'])) {
+if (!isset($data['ids']) || !is_array($data['ids']) || empty($data['ids'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'Keine IDs angegeben']);
-    exit;
-}
-
-$ids = array_map('intval', $data['ids']);
-if (empty($ids)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Keine gültigen IDs']);
+    echo json_encode(['error' => 'Keine Einträge zum Löschen ausgewählt']);
     exit;
 }
 
 try {
     $conn->begin_transaction();
-
-    // Lösche die ausgewählten Einträge
+    
+    // Konvertiere IDs in Integer und bereite SQL vor
+    $ids = array_map('intval', $data['ids']);
     $placeholders = str_repeat('?,', count($ids) - 1) . '?';
     $sql = "DELETE FROM kassenbuch_eintraege WHERE id IN ($placeholders)";
+    
+    // Bereite Statement vor und führe es aus
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(str_repeat('i', count($ids)), ...$ids);
     
-    if ($stmt->execute()) {
-        $conn->commit();
-        echo json_encode(['success' => true, 'message' => count($ids) . ' Einträge wurden gelöscht']);
-    } else {
-        throw new Exception('Fehler beim Löschen der Einträge');
+    if (!$stmt->execute()) {
+        throw new Exception('Fehler beim Löschen der Einträge: ' . $stmt->error);
     }
+    
+    $deleted_count = $stmt->affected_rows;
+    $conn->commit();
+    
+    echo json_encode([
+        'success' => true,
+        'message' => $deleted_count . ' Einträge wurden erfolgreich gelöscht'
+    ]);
+    
 } catch (Exception $e) {
     $conn->rollback();
+    error_log('Fehler bei Massenlöschung: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 } 

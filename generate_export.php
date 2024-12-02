@@ -55,164 +55,59 @@ try {
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
 
-    // Seiteneinstellungen
-    $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
-    $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
-
-    // Titel
-    $sheet->mergeCells('A1:E1');
-    $sheet->setCellValue('A1', 'Kassenbuch');
-    $sheet->getStyle('A1')->applyFromArray([
-        'font' => ['bold' => true, 'size' => 14],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D3D3D3']]
-    ]);
-
-    // Hole Firmeninformationen aus den Einstellungen
-    $company_info = [];
-    $company_settings = $conn->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('company_name', 'company_street', 'company_zip', 'company_city')");
-    while ($row = $company_settings->fetch_assoc()) {
-        $company_info[$row['setting_key']] = $row['setting_value'];
-    }
-
-    // Erstelle die Firmenadresse
-    $company_address = '';
-    if (!empty($company_info['company_name'])) {
-        $company_address .= $company_info['company_name'];
-        if (!empty($company_info['company_street'])) {
-            $company_address .= ', ' . $company_info['company_street'];
-        }
-        if (!empty($company_info['company_zip']) || !empty($company_info['company_city'])) {
-            $company_address .= ', ' . $company_info['company_zip'] . ' ' . $company_info['company_city'];
-        }
-    }
-
-    // Hole den aktuellen Kassenstand
-    $sql = "SELECT 
-        (SELECT COALESCE(SUM(einnahme), 0) - COALESCE(SUM(ausgabe), 0) 
-         FROM kassenbuch_eintraege 
-         WHERE datum < ?) as anfangsbestand";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $von);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $kasseninfo = $result->fetch_assoc();
-    $anfangsbestand = $kasseninfo['anfangsbestand'];
-
-    // Firmeninfo
-    $sheet->setCellValue('A2', 'Firma');
-    $sheet->setCellValue('B2', $company_address);
-    $sheet->mergeCells('B2:E2');
-    $sheet->getStyle('A2')->getFont()->setBold(true);
-
-    // Linke Spalte: Seite, Jahr, Monat
-    $sheet->setCellValue('A3', 'Seite');
-    $sheet->setCellValue('B3', '1');
-
-    $sheet->setCellValue('A4', 'Jahr');
-    $sheet->setCellValue('B4', date('Y', strtotime($von)));
-
-    $sheet->setCellValue('A5', 'Monat');
-    $sheet->setCellValue('B5', date('F', strtotime($von)));
-
-    // Rechte Spalte: Kassenbestand
-    $sheet->setCellValue('D3', 'Anfangsbestand');
-    $sheet->setCellValue('E3', $anfangsbestand);
-
-    // Berechne Summen für den Kopfbereich
-    $sumEinnahmen = array_sum(array_column($data, 'einnahme'));
-    $sumAusgaben = array_sum(array_column($data, 'ausgabe'));
-
-    $sheet->setCellValue('D4', 'Einnahmen');
-    $sheet->setCellValue('E4', $sumEinnahmen);
-
-    $sheet->setCellValue('D5', 'Ausgaben');
-    $sheet->setCellValue('E5', $sumAusgaben);
-
-    $aktuellerBestand = $anfangsbestand + $sumEinnahmen - $sumAusgaben;
-    $sheet->setCellValue('D6', 'Aktueller Kassenbestand');
-    $sheet->setCellValue('E6', $aktuellerBestand);
-
-    // Formatierung der Beschriftungen
-    $sheet->getStyle('A3:A5')->getFont()->setBold(true);
-    $sheet->getStyle('D3:D6')->getFont()->setBold(true);
-
-    // Tabellenkopf
-    $sheet->setCellValue('A8', 'Beleg-Nr.');
-    $sheet->setCellValue('B8', 'Datum');
-    $sheet->setCellValue('C8', 'Buchungstext/Belegtext');
-    $sheet->setCellValue('D8', 'Einnahmen (€)');
-    $sheet->setCellValue('E8', 'Ausgaben (€)');
-
-    // Formatierung Tabellenkopf
-    $sheet->getStyle('A8:E8')->applyFromArray([
-        'font' => ['bold' => true],
-        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
-    ]);
-
-    // Daten einfügen
-    $row = 9;
-    foreach ($data as $index => $entry) {
-        $sheet->setCellValue("A$row", $index + 1);
-        $sheet->setCellValue("B$row", date('d.m.Y', strtotime($entry['datum'])));
-        $sheet->setCellValue("C$row", $entry['bemerkung']);
-
-        // Einnahmen in Grün
-        if ($entry['einnahme'] > 0) {
-            $sheet->setCellValue("D$row", $entry['einnahme']);
-            $sheet->getStyle("D$row")->getFont()->getColor()->setARGB(Color::COLOR_DARKGREEN);
-            $sheet->getStyle("D$row")->getFont()->setBold(true);
-        }
-
-        // Ausgaben in Rot
-        if ($entry['ausgabe'] > 0) {
-            $sheet->setCellValue("E$row", $entry['ausgabe']);
-            $sheet->getStyle("E$row")->getFont()->getColor()->setARGB(Color::COLOR_DARKRED);
-            $sheet->getStyle("E$row")->getFont()->setBold(true);
-        }
-
-        // Rahmen für jede Zelle
-        $sheet->getStyle("A$row:E$row")->applyFromArray([
-            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
+    // Setze Überschriften
+    $headers = ['Datum', 'Beleg-Nr.', 'Bemerkung', 'Einnahme', 'Ausgabe', 'Saldo'];
+    foreach (range('A', 'F') as $i => $col) {
+        $sheet->setCellValue($col . '1', $headers[$i]);
+        $sheet->getStyle($col . '1')->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'CCCCCC']
+            ]
         ]);
+    }
 
+    // Fülle Daten ein
+    $row = 2;
+    foreach ($data as $entry) {
+        $sheet->setCellValue('A' . $row, date('d.m.Y', strtotime($entry['datum'])));
+        $sheet->setCellValue('B' . $row, $entry['beleg_nr']);
+        $sheet->setCellValue('C' . $row, $entry['bemerkung']);
+        $sheet->setCellValue('D' . $row, $entry['einnahme']);
+        $sheet->setCellValue('E' . $row, $entry['ausgabe']);
+        $sheet->setCellValue('F' . $row, $entry['saldo']);
+        
+        // Formatiere Zahlen
+        $sheet->getStyle('D' . $row . ':F' . $row)->getNumberFormat()
+            ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+        
         $row++;
     }
 
     // Summenzeile
-    $lastRow = $row - 1;
-    $sheet->mergeCells("A$row:C$row");
-    $sheet->setCellValue("A$row", 'Summe');
-    $sheet->setCellValue("D$row", "=SUM(D9:D$lastRow)");
-    $sheet->setCellValue("E$row", "=SUM(E9:E$lastRow)");
-
-    // Saldo
     $row++;
-    $sheet->mergeCells("A$row:D$row");
-    $sheet->setCellValue("A$row", 'Saldo');
-    $sheet->setCellValue("E$row", "=D" . ($row-1) . "-E" . ($row-1));
-
-    // Formatierung der Summen und Saldo
-    $sheet->getStyle("A" . ($row-1) . ":E$row")->applyFromArray([
+    $lastDataRow = $row - 2;
+    $sheet->setCellValue('C' . $row, 'Summen:');
+    $sheet->setCellValue('D' . $row, '=SUM(D2:D' . $lastDataRow . ')');
+    $sheet->setCellValue('E' . $row, '=SUM(E2:E' . $lastDataRow . ')');
+    $sheet->setCellValue('F' . $row, '=D' . $row . '-E' . $row);
+    
+    // Formatiere Summenzeile
+    $sheet->getStyle('C' . $row . ':F' . $row)->applyFromArray([
         'font' => ['bold' => true],
-        'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]]
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'CCCCCC']
+        ]
     ]);
+    $sheet->getStyle('D' . $row . ':F' . $row)->getNumberFormat()
+        ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
 
-    // Spaltenbreiten
-    $sheet->getColumnDimension('A')->setWidth(10);   // Beleg-Nr.
-    $sheet->getColumnDimension('B')->setWidth(15);   // Datum
-    $sheet->getColumnDimension('C')->setWidth(50);   // Buchungstext
-    $sheet->getColumnDimension('D')->setWidth(20);   // Einnahmen
-    $sheet->getColumnDimension('E')->setWidth(20);   // Ausgaben
-
-    // Währungsformat
-    $numberFormat = NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2;
-    $sheet->getStyle('E3:E6')->getNumberFormat()->setFormatCode($numberFormat . ' €');
-    $sheet->getStyle("D9:E$row")->getNumberFormat()->setFormatCode($numberFormat . ' €');
-
-    // Ausrichtung
-    $sheet->getStyle('A8:A' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    $sheet->getStyle('D8:E' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    // Spaltenbreite automatisch anpassen
+    foreach (range('A', 'F') as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
 
     // Lösche den Output-Buffer
     ob_end_clean();
